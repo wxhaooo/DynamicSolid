@@ -33,3 +33,16 @@ void UDynamicSolidComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// ...
 }
 
+void UDynamicSolidComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	FName PropName = PropertyChangedEvent.Property->GetFName();
+
+	if (PropName != FName("InitialSolidPath")) return;
+
+	//to resolve tet solid
+
+	
+	
+	// UE_LOG(LogTemp, Display, TEXT("PropName: %s"), *PropName.ToString());
+}
+

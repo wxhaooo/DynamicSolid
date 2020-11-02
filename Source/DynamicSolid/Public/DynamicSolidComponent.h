@@ -25,12 +25,25 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 		URuntimeMeshComponent* RuntimeMeshComp;
 
-	UPROPERTY(EditAnywhere, Category = "Simulator Configurations")
-		UStaticMesh* InitialSolid;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Initial Configurations")
+		FString InitialSolidPath;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Initial Configurations")
+		UStaticMesh* InitialSolidMesh;
+
+	//Simulator Configuration
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+		float TimeStep;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+		float MaxTimeStep;
+
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Simulator Configurations")
+		FVector Gravity;
 
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-		
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 };
