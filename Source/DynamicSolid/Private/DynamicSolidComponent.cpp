@@ -3,6 +3,7 @@
 
 #include "DynamicSolidComponent.h"
 #include "RuntimeMeshComponent.h"
+#include "FTetrahedronMesh.h"
 
 // Sets default values for this component's properties
 UDynamicSolidComponent::UDynamicSolidComponent()
@@ -37,12 +38,18 @@ void UDynamicSolidComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
 {
 	FName PropName = PropertyChangedEvent.Property->GetFName();
 
+	UNameProperty* prop = static_cast<UNameProperty*>(PropertyChangedEvent.Property);
+	FString MeshLoc;
+	prop->GetPropertyValue(&MeshLoc);
+
+	UE_LOG(LogTemp, Display, TEXT("PropPos: %s"), *MeshLoc);
+
 	if (PropName != FName("InitialSolidPath")) return;
 
 	//to resolve tet solid
 
+	TetrahedronMeshUPtr = MakeUnique<FTetrahedronMesh>();
 	
-	
-	// UE_LOG(LogTemp, Display, TEXT("PropName: %s"), *PropName.ToString());
+	UE_LOG(LogTemp, Display, TEXT("PropName: %s"), *PropName.ToString());
 }
 

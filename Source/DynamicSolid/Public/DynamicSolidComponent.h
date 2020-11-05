@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
+#include "FTetrahedronMesh.h"
 #include "DynamicSolidComponent.generated.h"
 
 class URuntimeMeshComponent;
@@ -46,4 +47,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+private:
+	TUniquePtr<FTetrahedronMesh> TetrahedronMeshUPtr;
 };

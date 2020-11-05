@@ -14,12 +14,23 @@ public class DynamicSolid : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
+		LoadThirdPartyLibrary();
+
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
-		
+
 		// Uncomment if you are using online features
 		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
 
 		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
+	}
+
+	public void LoadThirdPartyLibrary()
+	{
+		//load ThirdParty Header
+		PublicIncludePaths.Add("../ThirdParty/include");
+
+		//load ThirdParty Libs
+		//PublicAdditionalLibraries.Add("../ThirdParty/libs/AutodeskFBX");
 	}
 }
