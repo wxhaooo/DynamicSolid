@@ -14,6 +14,19 @@ ADynamicSolidActor::ADynamicSolidActor()
 	RootComponent = DynamicSolidComp;
 }
 
+void ADynamicSolidActor::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
+	TetrahedronMeshSPtr = DynamicSolidComp->GetTetrahedronMeshSPtr();
+	if (TetrahedronMeshSPtr == nullptr) return;
+
+	DynamicSolidComp->InitializeRuntimeMeshComp();
+	DynamicSolidComp->UpdateRenderableData();
+}
+
+
 // Called when the game starts or when spawned
 void ADynamicSolidActor::BeginPlay()
 {

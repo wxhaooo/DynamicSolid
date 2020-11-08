@@ -9,8 +9,18 @@ class DYNAMICSOLID_API FTetrahedronMesh
 {
 public:
 	FTetrahedronMesh();
+	FTetrahedronMesh(const FString& TetrahedronMeshPath);
 	~FTetrahedronMesh();
 
-	TArray<FTetDynamicPoint*> DynamicPoints;
-	TArray<FDynamicTetrahedron*> DynamicTetrahedrons;
+	//dynamic data
+	TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray;
+	TArray<TSharedPtr<FDynamicTetrahedron>> DynamicTetrahedronArray;
+
+	//renderable data
+	TArray<int> RenderablePointIndexArray;
+	TArray<int> RenderableTriangleIndexArray;
+	TArray<Vector2<real>> RenderableUvArray;
+	TArray<Vector3<real>> RenderableNormalArray;
+	
+	void ParseTetrahedronMesh(const FString& TetrahedronMeshPath);
 };

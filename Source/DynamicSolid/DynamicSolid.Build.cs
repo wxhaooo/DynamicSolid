@@ -16,9 +16,14 @@ public class DynamicSolid : ModuleRules
 
 		LoadThirdPartyLibrary();
 
-		// Uncomment if you are using Slate UI
-		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
+        // Uncomment if you are using Slate UI
+        PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
 
+		if(Target.bBuildEditor)
+        {
+			PrivateDependencyModuleNames.AddRange(new string[] { "DetailCustomizations", "PropertyEditor","EditorStyle" });
+			PublicDependencyModuleNames.AddRange(new string[] { "UnrealEd" });
+		}
 		// Uncomment if you are using online features
 		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
 

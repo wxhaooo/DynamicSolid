@@ -14,6 +14,23 @@ public:
 	FTetDynamicPoint();
 	~FTetDynamicPoint();
 
+	FTetDynamicPoint(const Vector3<real>& Position, int PointIndex,const Vector3<real>& RestPosition,
+		const Vector3<real>& InitialPosition, const Vector3<real>& Velocity,
+	const Vector3<real>& InitialVelocity):
+	Position(Position),RestPosition(RestPosition),InitialPosition(InitialPosition),
+	Velocity(Velocity),InitialVelocity(InitialVelocity),PointIndex(PointIndex)
+	{}
+
+	FTetDynamicPoint(const Vector3<real>& Position,int PointIndex)
+	{
+		this->InitialPosition = this->RestPosition = this->Position = Position;
+		this->Velocity.setZero();
+		this->InitialVelocity = this->Velocity;
+		Accleration.setZero();
+
+		this->PointIndex = PointIndex;
+	}
+
 	Vector3<real> Position;
 	Vector3<real> RestPosition;
 	Vector3<real> InitialPosition;
@@ -23,6 +40,8 @@ public:
 
 	Vector3<real> Accleration;
 
-	TArray<FTetDynamicEdge*> AdjacentEdges;
-	TArray<FTetDynamicFace*> AdjacentFaces;
+	int PointIndex;
+
+	// TArray<FTetDynamicEdge*> AdjacentEdges;
+	// TArray<FTetDynamicFace*> AdjacentFaces;
 };

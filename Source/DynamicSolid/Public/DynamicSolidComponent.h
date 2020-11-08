@@ -8,6 +8,7 @@
 #include "DynamicSolidComponent.generated.h"
 
 class URuntimeMeshComponent;
+class URuntimeMeshProviderStatic;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DYNAMICSOLID_API UDynamicSolidComponent : public USceneComponent
@@ -42,12 +43,24 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Simulator Configurations")
 		FVector Gravity;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeshMaterial")
+		UMaterialInterface* MeshMaterial;
+
+	URuntimeMeshProviderStatic* RuntimeMeshProviderStatic;
+	
 public:	
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
+	TSharedPtr<FTetrahedronMesh> GetTetrahedronMeshSPtr();
+
+	URuntimeMeshComponent* GetRuntimeMeshComp();
+
+	bool InitializeRuntimeMeshComp();
+
+	bool UpdateRenderableData();
 private:
-	TUniquePtr<FTetrahedronMesh> TetrahedronMeshUPtr;
+	TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
 };

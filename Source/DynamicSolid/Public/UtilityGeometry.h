@@ -3,13 +3,15 @@
 #include<algorithm>
 #include<iostream>
 #include<vector>
-
+#include "FTetDynamicPoint.h"
+#include "FDynamicTetrahedron.h"
+#include "FTetrahedronMesh.h"
 
 namespace utility
 {
 	namespace geometry
 	{
-	
+		void ParseTetFile(const FString& TetFilePath, FTetrahedronMesh* TetrahedronMeshPt);
 	}
 }
 
