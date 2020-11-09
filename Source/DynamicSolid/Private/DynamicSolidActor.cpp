@@ -3,6 +3,9 @@
 
 #include "DynamicSolidActor.h"
 #include "DynamicSolidComponent.h"
+#include "Providers/RuntimeMeshProviderBox.h"
+#include "RuntimeMeshComponent.h"
+#include "Providers/RuntimeMeshProviderStatic.h"
 
 // Sets default values
 ADynamicSolidActor::ADynamicSolidActor()
@@ -18,12 +21,8 @@ void ADynamicSolidActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
-	TetrahedronMeshSPtr = DynamicSolidComp->GetTetrahedronMeshSPtr();
-	if (TetrahedronMeshSPtr == nullptr) return;
-
-	DynamicSolidComp->InitializeRuntimeMeshComp();
-	DynamicSolidComp->UpdateRenderableData();
+	DynamicSolidComp->Initialize();
+	// UE_LOG(LogTemp, Display, TEXT("Achive ADynamicSolidActor::OnConstruction"));
 }
 
 
@@ -38,6 +37,6 @@ void ADynamicSolidActor::BeginPlay()
 void ADynamicSolidActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
+	
 }
 

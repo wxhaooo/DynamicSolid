@@ -23,7 +23,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 		UDynamicSolidComponent* DynamicSolidComp;
-
+	
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;

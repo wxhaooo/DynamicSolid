@@ -45,9 +45,9 @@ namespace utility
 				if (LineElements[0] == "v")	//points in mesh
 				{
 					// UE_LOG(LogTemp, Display, TEXT("233333"));
-					if(LineElements[1].IsNumeric() && 
-						LineElements[2].IsNumeric() && 
-						LineElements[3].IsNumeric())
+					// if(LineElements[1].IsNumeric() && 
+					// 	LineElements[2].IsNumeric() && 
+					// 	LineElements[3].IsNumeric())
 					{
 						float x, y, z;
 						x = FCString::Atof(*LineElements[1]);
@@ -55,18 +55,18 @@ namespace utility
 						z = FCString::Atof(*LineElements[3]);
 						PositionArray.Add(Vector3<real>(x, y, z));
 					}
-					else
-					{
-						UE_LOG(LogTemp, Warning, TEXT("vertex position in tet is not numeric type"));
-					}
+					// else
+					// {
+					// 	UE_LOG(LogTemp, Warning, TEXT("vertex position in tet is not numeric type"));
+					// }
 
 				}
 				else if(LineElements[0] == "tet")	//tetrahedron element
 				{
-					if (LineElements[1].IsNumeric() &&
-						LineElements[2].IsNumeric() &&
-						LineElements[3].IsNumeric() &&
-						LineElements[4].IsNumeric())
+					// if (LineElements[1].IsNumeric() &&
+					// 	LineElements[2].IsNumeric() &&
+					// 	LineElements[3].IsNumeric() &&
+					// 	LineElements[4].IsNumeric())
 					{
 						int index0, index1, index2, index3;
 						index0 = FCString::Atoi(*LineElements[1]);
@@ -76,10 +76,10 @@ namespace utility
 
 						TetPointIndexArray.Add(Vector4<int>(index0, index1, index2, index3));
 					}
-					else
-					{
-						UE_LOG(LogTemp, Warning, TEXT("vertex index in tet is not numeric type"));
-					}
+					// else
+					// {
+					// 	UE_LOG(LogTemp, Warning, TEXT("vertex index in tet is not numeric type"));
+					// }
 				}
 				else if(LineElements[0] == "f")		//point indices of triangle faces
 				{
@@ -111,18 +111,18 @@ namespace utility
 				}
 				else if(LineElements[0] == "vt")	//uv coordinates
 				{
-					if (LineElements[1].IsNumeric() &&
-						LineElements[2].IsNumeric())
-					{
+					// if (LineElements[1].IsNumeric() &&
+					// 	LineElements[2].IsNumeric())
+					// {
 						float u, v;
 						u = FCString::Atof(*LineElements[1]);
 						v = FCString::Atof(*LineElements[2]);
 						UvArray.Add(Vector2<real>(u,v));
-					}
-					else
-					{
-						UE_LOG(LogTemp, Warning, TEXT("uv coordinate in tet is not numeric type"));
-					}
+					// }
+					// else
+					// {
+					// 	UE_LOG(LogTemp, Warning, TEXT("uv coordinate in tet is not numeric type"));
+					// }
 				}
 				else if(LineElements[0] == "vn")	//normals
 				{
@@ -143,6 +143,7 @@ namespace utility
 				}
 			}
 
+			// UE_LOG(LogTemp, Display, TEXT("DynamicPointNumber: %d\n"), PositionArray.Num());
 			for (int i = 0; i < PositionArray.Num(); i++)
 			{
 				TetrahedronMeshPt->DynamicPointArray
@@ -157,8 +158,8 @@ namespace utility
 				int Index2 = CurPointIndices(2);
 				int Index3 = CurPointIndices(3);
 
-				// if (Index0 == 0 || Index1 == 0 || Index2 == 0 || Index3 == 0)
-				// 	UE_LOG(LogTemp, Display, TEXT("233333"));
+				// UE_LOG(LogTemp, Display, TEXT("%d %d %d %d\n"), Index0, Index1, Index2, Index3);
+
 				TetrahedronMeshPt->DynamicTetrahedronArray
 					.Add(
 						MakeShared<FDynamicTetrahedron>

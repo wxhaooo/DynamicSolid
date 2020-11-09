@@ -27,11 +27,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 		URuntimeMeshComponent* RuntimeMeshComp;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Initial Configurations")
-		FString InitialSolidPath;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Initial Configurations")
-		UStaticMesh* InitialSolidMesh;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Dynamic Solid Configurations")
+		FString InitDynamicSolidPath;
 
 	//Simulator Configuration
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
@@ -52,15 +49,21 @@ public:
 	// Called every frame
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	TSharedPtr<FTetrahedronMesh> GetTetrahedronMeshSPtr();
+
+	void SetTetrahedronMeshSPtr(const TSharedPtr<FTetrahedronMesh>& TetMeshSPtr);
 
 	URuntimeMeshComponent* GetRuntimeMeshComp();
 
 	bool InitializeRuntimeMeshComp();
 
 	bool UpdateRenderableData();
+
+	FString GetInitDynamicSolidPath();
+
+	bool Initialize();
 private:
 	TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
 };
