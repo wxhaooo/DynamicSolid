@@ -177,8 +177,10 @@ namespace utility
 
 			TSet<int> AuxSet;
 
+			int MaxIndexNumber = -1;
 			for (int i = 0; i < TrianglePointIndexArray.Num(); i++)
 			{
+				MaxIndexNumber = std::max(MaxIndexNumber, TrianglePointIndexArray[i]);
 				if(!AuxSet.Contains(TrianglePointIndexArray[i]))
 				{
 					AuxSet.Add(TrianglePointIndexArray[i]);
@@ -186,6 +188,8 @@ namespace utility
 					.Add(TrianglePointIndexArray[i]);
 				}
 			}
+
+			// UE_LOG(LogTemp, Display, TEXT("Max : %d\n"), MaxIndexNumber);
 			
 			TetrahedronMeshPt->RenderablePointIndexArray.Sort();
 			

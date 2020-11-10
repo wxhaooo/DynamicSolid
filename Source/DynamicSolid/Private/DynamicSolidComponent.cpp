@@ -14,26 +14,67 @@ UDynamicSolidComponent::UDynamicSolidComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
+	Gravity = FVector(0., 0., -9.8f);
+	bFixedTimeStep = false;
+
 	RuntimeMeshComp = CreateDefaultSubobject<URuntimeMeshComponent>("RuntimeMeshComp");
 }
-
 
 // Called when the game starts
 void UDynamicSolidComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	UE_LOG(LogTemp, Display, TEXT("Dynamic Solid Component Begin Play"));
 	// ...
 	
 }
 
+bool UDynamicSolidComponent::UpdateRenderableData()
+{
+	if (RuntimeMeshComp == nullptr) return false;
+	if (TetrahedronMeshSPtr == nullptr) return false;
+
+	TArray<FVector> PositionArray;
+	TArray<FVector> NormalArray;
+	TArray<FVector2D> TexCoordArray;
+	TArray<FRuntimeMeshTangent> TangentArray;
+	TArray<FColor> ColorArray;
+
+	for (int i = 0; i < TetrahedronMeshSPtr->RenderablePointIndexArray.Num(); i++)
+	{
+		int CurIndex = TetrahedronMeshSPtr->RenderablePointIndexArray[i];
+		PositionArray.Add(utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->DynamicPointArray[CurIndex]->Position));
+		NormalArray.Add(utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableNormalArray[CurIndex]));
+		TexCoordArray.Add(utility::unreal::Vector2ToFVector2D(TetrahedronMeshSPtr->RenderableUvArray[CurIndex]));
+	}
+
+	ColorArray.Init(FColor::Red,
+		TetrahedronMeshSPtr->RenderablePointIndexArray.Num());
+
+	RuntimeMeshProviderStatic->UpdateSectionFromComponents(0, 0,
+		PositionArray,
+		TetrahedronMeshSPtr->RenderableTriangleIndexArray,
+		NormalArray,
+		TexCoordArray, ColorArray, TangentArray);
+	
+	return true;
+}
 
 // Called every frame
 void UDynamicSolidComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	//UE_LOG(LogTemp, Display, TEXT("DynamicSolidComponent::TickComponent"));
+
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// ...
+	float SimulatedTime
+		= (bFixedTimeStep & (!FMath::IsNearlyZero(TimeStep)))
+		? TimeStep : DeltaTime;
+
+	ApplyGravity(SimulatedTime);
+
+	UpdateRenderableData();
 }
 
 URuntimeMeshComponent* UDynamicSolidComponent::GetRuntimeMeshComp()
@@ -56,7 +97,7 @@ bool UDynamicSolidComponent::InitializeRuntimeMeshComp()
 	return true;
 }
 
-bool UDynamicSolidComponent::UpdateRenderableData()
+bool UDynamicSolidComponent::CreateRenderableData()
 {
 	if (TetrahedronMeshSPtr == nullptr) return false;
 	
@@ -140,11 +181,11 @@ bool UDynamicSolidComponent::UpdateRenderableData()
 	UE_LOG(LogTemp, Display, TEXT("PointUvArraySize: %d\n"), TetrahedronMeshSPtr->RenderableUvArray.Num());
 	UE_LOG(LogTemp, Display, TEXT("PointNormalArraySize: %d\n"), TetrahedronMeshSPtr->RenderableNormalArray.Num());
 
-	check(TetrahedronMeshSPtr->RenderablePointIndexArray.Num()
-		== TetrahedronMeshSPtr->RenderableUvArray.Num());
-	
-	check(TetrahedronMeshSPtr->RenderablePointIndexArray.Num()
-		== TetrahedronMeshSPtr->RenderableNormalArray.Num());
+	// check(TetrahedronMeshSPtr->RenderablePointIndexArray.Num()
+	// 	== TetrahedronMeshSPtr->RenderableUvArray.Num());
+	//
+	// check(TetrahedronMeshSPtr->RenderablePointIndexArray.Num()
+	// 	== TetrahedronMeshSPtr->RenderableNormalArray.Num());
 
 	for(int i=0;i<TetrahedronMeshSPtr->RenderablePointIndexArray.Num();i++)
 	{
@@ -172,9 +213,9 @@ TSharedPtr<FTetrahedronMesh> UDynamicSolidComponent::GetTetrahedronMeshSPtr()
 	return TetrahedronMeshSPtr;
 }
 
-void UDynamicSolidComponent::SetTetrahedronMeshSPtr(const TSharedPtr<FTetrahedronMesh>& TetMeshSPtr)
+void UDynamicSolidComponent::SetTetrahedronMeshSPtr(TSharedPtr<FTetrahedronMesh> TetMeshPtr)
 {
-	TetrahedronMeshSPtr = TetMeshSPtr;
+	TetrahedronMeshSPtr = TetMeshPtr;
 }
 
 FString UDynamicSolidComponent::GetInitDynamicSolidPath()
@@ -191,8 +232,31 @@ bool UDynamicSolidComponent::Initialize()
 	if (TetrahedronMeshSPtr == nullptr) return false;
 
 	if (!InitializeRuntimeMeshComp()) return false;
-	if (!UpdateRenderableData()) return false;
+	if (!CreateRenderableData()) return false;
 
+	return true;
+}
+
+bool UDynamicSolidComponent::ApplyGravity(float DeltaTime)
+{
+	if (TetrahedronMeshSPtr == nullptr) return false;
+	TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray = TetrahedronMeshSPtr->DynamicPointArray;
+	for (int i = 0; i < DynamicPointArray.Num(); i++)
+	{
+		DynamicPointArray[i]->Velocity =
+			DynamicPointArray[i]->Velocity + 
+			utility::unreal::FVectorToVector3(Gravity) * DeltaTime;
+
+		DynamicPointArray[i]->Position =
+			DynamicPointArray[i]->Position +
+			DynamicPointArray[i]->Velocity * DeltaTime;
+
+		/*if (i == 0)
+			UE_LOG(LogTemp, Display, TEXT("%f %f %f\n"),
+				DynamicPointArray[i]->Position(0),
+				DynamicPointArray[i]->Position(1),
+				DynamicPointArray[i]->Position(2));*/
+	}
 	return true;
 }
 

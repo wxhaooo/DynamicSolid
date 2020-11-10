@@ -15,6 +15,7 @@ ADynamicSolidActor::ADynamicSolidActor()
 
 	DynamicSolidComp = CreateDefaultSubobject<UDynamicSolidComponent>("DynamicSolidComp");
 	RootComponent = DynamicSolidComp;
+
 }
 
 void ADynamicSolidActor::OnConstruction(const FTransform& Transform)
@@ -22,6 +23,7 @@ void ADynamicSolidActor::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 
 	DynamicSolidComp->Initialize();
+
 	// UE_LOG(LogTemp, Display, TEXT("Achive ADynamicSolidActor::OnConstruction"));
 }
 
@@ -30,13 +32,13 @@ void ADynamicSolidActor::OnConstruction(const FTransform& Transform)
 void ADynamicSolidActor::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	DynamicSolidComp->Initialize();
 }
 
 // Called every frame
 void ADynamicSolidActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
 }
 

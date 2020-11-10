@@ -40,6 +40,9 @@ protected:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Simulator Configurations")
 		FVector Gravity;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+		bool bFixedTimeStep;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeshMaterial")
 		UMaterialInterface* MeshMaterial;
 
@@ -53,17 +56,23 @@ public:
 
 	TSharedPtr<FTetrahedronMesh> GetTetrahedronMeshSPtr();
 
-	void SetTetrahedronMeshSPtr(const TSharedPtr<FTetrahedronMesh>& TetMeshSPtr);
+	void SetTetrahedronMeshSPtr(TSharedPtr<FTetrahedronMesh> TetMeshPtr);
 
 	URuntimeMeshComponent* GetRuntimeMeshComp();
 
 	bool InitializeRuntimeMeshComp();
+
+	bool CreateRenderableData();
 
 	bool UpdateRenderableData();
 
 	FString GetInitDynamicSolidPath();
 
 	bool Initialize();
+
+	bool ApplyGravity(float DeltaTime);
 private:
+	//UPROPERTY()
 	TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
+	//FTetrahedronMesh* TetrahedronMeshSPtr;
 };

@@ -22,5 +22,6 @@ public:
 	TArray<Vector2<real>> RenderableUvArray;
 	TArray<Vector3<real>> RenderableNormalArray;
 	
+	bool Initialize(const FString& TetrahedronMeshPath);
 	void ParseTetrahedronMesh(const FString& TetrahedronMeshPath);
 };

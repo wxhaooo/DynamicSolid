@@ -11,12 +11,18 @@ FTetrahedronMesh::FTetrahedronMesh()
 
 FTetrahedronMesh::FTetrahedronMesh(const FString& TetrahedronMeshPath)
 {
-	ParseTetrahedronMesh(TetrahedronMeshPath);
+	Initialize(TetrahedronMeshPath);
 }
 
 FTetrahedronMesh::~FTetrahedronMesh()
 {
 	
+}
+
+bool FTetrahedronMesh::Initialize(const FString& TetrahedronMeshPath)
+{
+	ParseTetrahedronMesh(TetrahedronMeshPath);
+	return true;
 }
 
 void FTetrahedronMesh::ParseTetrahedronMesh(const FString& TetrahedronMeshPath)
