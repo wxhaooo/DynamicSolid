@@ -4,75 +4,92 @@
 
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
-#include "FTetrahedronMesh.h"
+// #include "FTetrahedronMesh.h"
 #include "DynamicSolidComponent.generated.h"
 
 class URuntimeMeshComponent;
 class URuntimeMeshProviderStatic;
+class FTetrahedronMesh;
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DYNAMICSOLID_API UDynamicSolidComponent : public USceneComponent
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:	
-	// Sets default values for this component's properties
-	UDynamicSolidComponent();
+    // Sets default values for this component's properties
+    UDynamicSolidComponent();
 
 protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
+    // Called when the game starts
+    virtual void BeginPlay() override;
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "Components")
-		URuntimeMeshComponent* RuntimeMeshComp;
+    UPROPERTY(VisibleAnywhere, Category = "Components")
+	URuntimeMeshComponent* RuntimeMeshComp;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Dynamic Solid Configurations")
-		FString InitDynamicSolidPath;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Dynamic Solid Configurations")
+	FString InitDynamicSolidPath;
 
-	//Simulator Configuration
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-		float TimeStep;
+    //Simulator Configuration
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+	float TimeStep;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-		float MaxTimeStep;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+	float MaxTimeStep;
 
-	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Simulator Configurations")
-		FVector Gravity;
+    UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Simulator Configurations")
+	FVector Gravity;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-		bool bFixedTimeStep;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+	bool bFixedTimeStep;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeshMaterial")
-		UMaterialInterface* MeshMaterial;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+        bool bVisualDebugger;
 
-	URuntimeMeshProviderStatic* RuntimeMeshProviderStatic;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeshMaterial")
+	UMaterialInterface* MeshMaterial;
+
+    UPROPERTY()
+        URuntimeMeshProviderStatic* RuntimeMeshProviderStatic;
 	
-public:	
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+public:
+    // Called every frame
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	// virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+    // virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	
+    TSharedPtr<FTetrahedronMesh> GetTetrahedronMeshSPtr();
 
-	TSharedPtr<FTetrahedronMesh> GetTetrahedronMeshSPtr();
+    void SetTetrahedronMeshSPtr(TSharedPtr<FTetrahedronMesh> TetMeshPtr);
 
-	void SetTetrahedronMeshSPtr(TSharedPtr<FTetrahedronMesh> TetMeshPtr);
+    URuntimeMeshComponent* GetRuntimeMeshComp();
 
-	URuntimeMeshComponent* GetRuntimeMeshComp();
+    bool InitializeRuntimeMeshComp();
 
-	bool InitializeRuntimeMeshComp();
+    bool CreateRenderableData();
 
-	bool CreateRenderableData();
+    bool UpdateRenderableData();
 
-	bool UpdateRenderableData();
+    FString GetInitDynamicSolidPath();
 
-	FString GetInitDynamicSolidPath();
+    bool Initialize();
 
-	bool Initialize();
+    bool ApplyGravity(float DeltaTime);
 
-	bool ApplyGravity(float DeltaTime);
+    bool ApplyInternalForce(float DeltaTime);
+
+    void CollisionResolve();
+
+    void VisualMotionDebugger();
+
 private:
-	//UPROPERTY()
-	TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
-	//FTetrahedronMesh* TetrahedronMeshSPtr;
+    TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
+
+    float TestValue;
+
+    TSharedPtr<FString> TestStrSPtr;
+
+    FString* TestStrPtr;
+	
 };

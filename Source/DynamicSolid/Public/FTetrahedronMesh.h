@@ -24,4 +24,5 @@ public:
 	
 	bool Initialize(const FString& TetrahedronMeshPath);
 	void ParseTetrahedronMesh(const FString& TetrahedronMeshPath);
+	bool ApplyRootActorTransform(const FTransform& RootActorTransform = FTransform::Identity);
 };

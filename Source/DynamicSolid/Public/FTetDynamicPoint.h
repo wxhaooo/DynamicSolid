@@ -33,9 +33,11 @@ public:
 
 	Vector3<real> Position;
 	Vector3<real> RestPosition;
+	Vector3<real> PostPosition;
 	Vector3<real> InitialPosition;
 
 	Vector3<real> Velocity;
+	Vector3<real> PostVelocity;
 	Vector3<real> InitialVelocity;
 
 	Vector3<real> Accleration;
