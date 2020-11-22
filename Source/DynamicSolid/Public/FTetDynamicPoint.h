@@ -29,6 +29,9 @@ public:
 		Accleration.setZero();
 
 		this->PointIndex = PointIndex;
+
+		Mass = 1.f;
+		MassInv = 1.f;
 	}
 
 	Vector3<real> Position;
@@ -44,6 +47,8 @@ public:
 
 	int PointIndex;
 
+	real Mass;
+	real MassInv;
 	// TArray<FTetDynamicEdge*> AdjacentEdges;
 	// TArray<FTetDynamicFace*> AdjacentFaces;
 };

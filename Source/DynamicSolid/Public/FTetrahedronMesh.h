@@ -21,6 +21,10 @@ public:
 	TArray<int> RenderableTriangleIndexArray;
 	TArray<Vector2<real>> RenderableUvArray;
 	TArray<Vector3<real>> RenderableNormalArray;
+
+	int DynamicPointNumber() { return DynamicPointArray.Num(); }
+	int SurfacePointNumber() { return RenderablePointIndexArray.Num(); }
+	int DynamicTetraherdronNumber() { return DynamicTetrahedronArray.Num(); }
 	
 	bool Initialize(const FString& TetrahedronMeshPath);
 	void ParseTetrahedronMesh(const FString& TetrahedronMeshPath);

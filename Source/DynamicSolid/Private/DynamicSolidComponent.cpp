@@ -1,12 +1,12 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "DynamicSolidComponent.h"
 #include "RuntimeMeshComponent.h"
 #include "FTetrahedronMesh.h"
 #include "Providers/RuntimeMeshProviderStatic.h"
 #include "UtilityUnreal.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/KismetMathLibrary.h"
 
 // Sets default values for this component's properties
 UDynamicSolidComponent::UDynamicSolidComponent()
@@ -15,13 +15,22 @@ UDynamicSolidComponent::UDynamicSolidComponent()
     // off to improve performance if you don't need them.
     PrimaryComponentTick.bCanEverTick = true;
 
-    Gravity = FVector(0., 0., -9.8f);
+    GravityAccleration = FVector(0., 0., -9.8f);
     bFixedTimeStep = false;
 
     RuntimeMeshComp = CreateDefaultSubobject<URuntimeMeshComponent>("RuntimeMeshComp");
     RuntimeMeshComp->SetupAttachment(this);
 
     bVisualDebugger = false;
+
+    YoungModulus = 0.3f;
+    PoissonRatio = 0.3f;
+
+    TimeStep = 0.0005f;
+    MaxTimeStep = 0.05f;
+
+    Mu = ComputeMu();
+    Lambda = ComputeLambda();
 }
 
 // Called when the game starts
@@ -30,8 +39,6 @@ void UDynamicSolidComponent::BeginPlay()
     Super::BeginPlay();
 
     UE_LOG(LogTemp, Display, TEXT("Dynamic Solid Component Begin Play"));
-    // ...
-	
 }
 
 // Called every frame
@@ -39,18 +46,43 @@ void UDynamicSolidComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+    if (IntegrationMethod == EIntegrationMethod::IM_NONE) return;
+
     float SimulatedTime
 	    = (bFixedTimeStep & (!FMath::IsNearlyZero(TimeStep)))
 	    ? TimeStep : DeltaTime;
 
-    ApplyGravity(SimulatedTime);
-
+	
+	if(IntegrationMethod == EIntegrationMethod::IM_EXP_FD)
+	{
+		//TimeStep should be enough small (<=0.0001),too slow
+        EXP_ForwardDifference(SimulatedTime);
+	}
+    else if(IntegrationMethod == EIntegrationMethod::IM_EXP_VERLET)
+    {
+        EXP_Verlet(SimulatedTime);
+    }
+    else if(IntegrationMethod == EIntegrationMethod::IM_IMP_MPCG)
+    {
+        IMP_MPCG(SimulatedTime);
+    }
+    else if(IntegrationMethod == EIntegrationMethod::IM_IMP_PPCG)
+    {
+        IMP_PPCG(SimulatedTime);
+    }
+	
     CollisionResolve();
 
     UpdateRenderableData();
 
     if(bVisualDebugger)
       VisualMotionDebugger();
+
+    // GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, FString::SanitizeFloat(Mu));
+    // GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan, FString::SanitizeFloat(Lambda));
+
+	// UE_LOG(LogTemp, Display, TEXT("Lame's First Parameter: %f"), Mu);
+    // UE_LOG(LogTemp, Display, TEXT("Lame's Second Parameter: %f"), Lambda);
 }
 
 URuntimeMeshComponent* UDynamicSolidComponent::GetRuntimeMeshComp()
@@ -92,9 +124,9 @@ bool UDynamicSolidComponent::CreateRenderableData()
 
     FTransform OwnerActorTransform = OwnerActor->GetActorTransform();
 
-    UE_LOG(LogTemp, Display, TEXT("PointIndexArraySize: %d\n"), TetrahedronMeshSPtr->RenderablePointIndexArray.Num());
-    UE_LOG(LogTemp, Display, TEXT("PointUvArraySize: %d\n"), TetrahedronMeshSPtr->RenderableUvArray.Num());
-    UE_LOG(LogTemp, Display, TEXT("PointNormalArraySize: %d\n"), TetrahedronMeshSPtr->RenderableNormalArray.Num());
+    // UE_LOG(LogTemp, Display, TEXT("PointIndexArraySize: %d\n"), TetrahedronMeshSPtr->RenderablePointIndexArray.Num());
+    // UE_LOG(LogTemp, Display, TEXT("PointUvArraySize: %d\n"), TetrahedronMeshSPtr->RenderableUvArray.Num());
+    // UE_LOG(LogTemp, Display, TEXT("PointNormalArraySize: %d\n"), TetrahedronMeshSPtr->RenderableNormalArray.Num());
 
     for (int i = 0; i < TetrahedronMeshSPtr->RenderablePointIndexArray.Num(); i++)
     {
@@ -155,25 +187,132 @@ bool UDynamicSolidComponent::Initialize()
     if (TetrahedronMeshSPtr == nullptr) return false;
 
     if (!InitializeRuntimeMeshComp()) return false;
-    if (!CreateRenderableData()) return false;
+    // if (!CreateRenderableData()) return false;
 
     return true;
 }
 
-bool UDynamicSolidComponent::ApplyGravity(float DeltaTime)
+VectorX<real> UDynamicSolidComponent::ComputeGravity(float SimulatedTime)
+{
+    VectorX<real> Gravity;
+    if (TetrahedronMeshSPtr == nullptr) return Gravity;
+	
+    TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray = TetrahedronMeshSPtr->DynamicPointArray;
+    Gravity.setZero(DynamicPointArray.Num() * 3);
+	
+	for (int i = 0; i < DynamicPointArray.Num(); i++)
+    {
+		Gravity.block<3, 1>(i * 3, 0)
+                = DynamicPointArray[i]->Mass * utility::unreal::FVectorToVector3(GravityAccleration);
+    }
+
+    return Gravity;
+}
+
+VectorX<real> UDynamicSolidComponent::ComputeInternalForce(float SimulatedTime)
+{
+    VectorX<real> InternalForceOut;
+
+    if (TetrahedronMeshSPtr == nullptr) return InternalForceOut;
+    TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray = TetrahedronMeshSPtr->DynamicPointArray;
+    TArray<TSharedPtr<FDynamicTetrahedron>> DynamicTetArray = TetrahedronMeshSPtr->DynamicTetrahedronArray;
+    InternalForceOut.setZero(DynamicPointArray.Num() * 3);
+
+	for(int i=0;i<DynamicTetArray.Num();i++)
+	{
+        TSharedPtr<FDynamicTetrahedron> CurTet = DynamicTetArray[i];
+        Vector12<real> InternalForce = CurTet->ComputeForce(Mu, Lambda);
+        TTuple<int, int, int, int> PointIndices = CurTet->PointIndices();
+        int p0Index = PointIndices.Get<0>(), p1Index = PointIndices.Get<1>();
+        int p2Index = PointIndices.Get<2>(), p3Index = PointIndices.Get<3>();
+
+        InternalForceOut.block<3, 1>(p0Index * 3, 0) += InternalForce.block<3, 1>(0, 0);
+        InternalForceOut.block<3, 1>(p1Index * 3, 0) += InternalForce.block<3, 1>(3, 0);
+        InternalForceOut.block<3, 1>(p2Index * 3, 0) += InternalForce.block<3, 1>(6, 0);
+        InternalForceOut.block<3, 1>(p3Index * 3, 0) += InternalForce.block<3, 1>(9, 0);
+
+	}
+	
+    return InternalForceOut;
+}
+
+VectorX<real> UDynamicSolidComponent::ComputeConstraintForce(float SimulatedTime)
+{
+    VectorX<real> ConstraintForce;
+
+    if (TetrahedronMeshSPtr == nullptr) return ConstraintForce;
+    //TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray = TetrahedronMeshSPtr->DynamicPointArray;
+
+    return ConstraintForce;
+}
+
+bool UDynamicSolidComponent::EXP_ForwardDifference(float SimulatedTime)
 {
     if (TetrahedronMeshSPtr == nullptr) return false;
+	
+    VectorX<real> Gravity = ComputeGravity(SimulatedTime);
+    VectorX<real> InternalForce = ComputeInternalForce(SimulatedTime);
+    // InternalForce.setZero();
     TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray = TetrahedronMeshSPtr->DynamicPointArray;
+
+	//Forward Difference
+    for (int i = 0; i < DynamicPointArray.Num(); i++)
+	{
+        TSharedPtr<FTetDynamicPoint> CurPoint = DynamicPointArray[i];
+        Vector3<real> GravityInPoint = Gravity.block<3, 1>(i * 3, 0);
+        Vector3<real> InternalForceInPoint = InternalForce.block<3, 1>(i * 3, 0);
+
+        Vector3<real> TotalForceInPoint;
+        TotalForceInPoint.setZero();
+    	//for test internal
+        if (CurPoint->PointIndex >= 100)
+            TotalForceInPoint = CurPoint->MassInv * (GravityInPoint + InternalForceInPoint);
+
+        CurPoint->Velocity = CurPoint->Velocity + TotalForceInPoint * SimulatedTime;
+        CurPoint->PostPosition = CurPoint->Position + CurPoint->Velocity * SimulatedTime;
+	}
+
+    return true;
+}
+
+bool UDynamicSolidComponent::EXP_Verlet(float SimulatedTime)
+{
+    VectorX<real> Gravity = ComputeGravity(SimulatedTime);
+    VectorX<real> InternalForce = ComputeInternalForce(SimulatedTime);
+    // InternalForce.setZero();
+
+    TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray = TetrahedronMeshSPtr->DynamicPointArray;
+
+    //Verlet Integration
     for (int i = 0; i < DynamicPointArray.Num(); i++)
     {
-	DynamicPointArray[i]->Velocity =
-		DynamicPointArray[i]->Velocity + 
-		utility::unreal::FVectorToVector3(Gravity) * DeltaTime;
+        TSharedPtr<FTetDynamicPoint> CurPoint = DynamicPointArray[i];
+        Vector3<real> GravityInPoint = Gravity.block<3, 1>(i * 3, 0);
+        Vector3<real> InternalForceInPoint = InternalForce.block<3, 1>(i * 3, 0);
 
-	DynamicPointArray[i]->PostPosition =
-		DynamicPointArray[i]->Position +
-		DynamicPointArray[i]->Velocity * DeltaTime;
+        Vector3<real> TotalAccInPoint;
+        TotalAccInPoint.setZero();
+
+    	if(CurPoint->PointIndex > 25)
+        TotalAccInPoint = CurPoint->MassInv * (GravityInPoint + InternalForceInPoint);
+
+    	//Verlet Integration
+        CurPoint->PostPosition = CurPoint->Position +
+            CurPoint->Velocity * SimulatedTime + CurPoint->Accleration * (SimulatedTime * SimulatedTime * 0.5f);
+        CurPoint->Velocity = CurPoint->Velocity + (TotalAccInPoint + CurPoint->Accleration) * SimulatedTime * 0.5f;
+
+        CurPoint->Accleration = TotalAccInPoint;
     }
+    return true;
+}
+
+bool UDynamicSolidComponent::IMP_MPCG(float SimulatedTime)
+{
+    return true;
+}
+
+bool UDynamicSolidComponent::IMP_PPCG(float SimulatedTime)
+{
     return true;
 }
 
@@ -202,6 +341,7 @@ void UDynamicSolidComponent::CollisionResolve()
     	{
             // GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "23333");
             FVector ImpactPoint = HitResult.ImpactPoint;
+            // CurRenderablePoint->PostPosition = utility::unreal::FVectorToVector3(ImpactPoint);
             // DrawDebugLine(GetWorld(), TraceStart, ImpactPoint, FColor::Blue, true,10.f,0,5.);
     	}
 	}
@@ -253,12 +393,15 @@ bool UDynamicSolidComponent::UpdateRenderableData()
     return true;
 }
 
-bool UDynamicSolidComponent::ApplyInternalForce(float DeltaTime)
+float UDynamicSolidComponent::ComputeMu()
 {
-    if (TetrahedronMeshSPtr == nullptr) return false;
-    //TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray = TetrahedronMeshSPtr->DynamicPointArray;
+    return YoungModulus / (2.f * (1.f + PoissonRatio));
+}
 
-    return true;
+float UDynamicSolidComponent::ComputeLambda()
+{
+	return (YoungModulus * PoissonRatio) /
+        ((1 + PoissonRatio) * (1 - 2.f * PoissonRatio));
 }
 
 void UDynamicSolidComponent::VisualMotionDebugger()
@@ -285,29 +428,37 @@ void UDynamicSolidComponent::VisualMotionDebugger()
     }
 }
 
-// #ifdef WITH_EDITOR
-// void UDynamicSolidComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-// {
-// 	
-//     FName PropName = PropertyChangedEvent.Property->GetFName();
-//     
-//     UNameProperty* prop = static_cast<UNameProperty*>(PropertyChangedEvent.Property);
-//     FString MeshLoc;
-//     prop->GetPropertyValue(&MeshLoc);
-//     
-//     if (PropName != FName("InitDynamicSolidPath")) return;
-//     if (!FPaths::FileExists(InitDynamicSolidPath)) return;
-//
-//     //to resolve tet solid
-// 	// this->TetrahedronMeshSPtr = MakeShared<FTetrahedronMesh>(InitDynamicSolidPath);
-//     Initialize();
-//
-// 	// this->TestValue = 1234;
-// 	//
-// 	// this->TestStrSPtr = MakeShared<FString>("23333");
-// 	// this->TestStrPtr = new FString("455555");
-//
-// 	Super::PostEditChangeProperty(PropertyChangedEvent);
-//
-// }
-// #endif
+#ifdef WITH_EDITOR
+void UDynamicSolidComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+    FName PropName = PropertyChangedEvent.Property->GetFName();
+    
+    UNameProperty* prop = static_cast<UNameProperty*>(PropertyChangedEvent.Property);
+    FString MeshLoc;
+    prop->GetPropertyValue(&MeshLoc);
+    
+    if (PropName == FName("YoungModulus") ||
+        PropName == FName("PoissonRatio"))
+    {
+        if (PropName == FName("PoissonRatio"))
+            PoissonRatio = FMath::Clamp(PoissonRatio, -0.99f, 0.49f);
+    	
+        Mu = ComputeMu();
+        Lambda = ComputeLambda();
+    }
+
+	if(PropName == FName("InternalForceDamping"))
+        InternalForceDamping = FMath::Clamp(InternalForceDamping, 0.0f, 1.0f);
+
+    if (PropName == FName("TimeStep") || PropName == FName("MaxTimeStep"))
+    {
+        if (PropName == FName("MaxTimeStep"))
+            MaxTimeStep = FMath::Clamp(MaxTimeStep, 0.f, 1.f);
+    	
+        TimeStep = FMath::Clamp(TimeStep, 0.f, MaxTimeStep);
+    }
+        
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+}
+#endif

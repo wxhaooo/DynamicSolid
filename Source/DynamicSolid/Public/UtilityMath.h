@@ -23,6 +23,12 @@ constexpr float eps = 1e-6;
 using real_hps = double;
 
 template<typename T>
+using Vector9 = Eigen::Matrix<T, 9, 1>;
+
+template<typename T>
+using Vector12 = Eigen::Matrix<T, 12, 1>;
+
+template<typename T>
 using Vector4 = Eigen::Matrix<T, 4, 1>;
 
 template<typename T>
@@ -42,6 +48,12 @@ using Vector3d = Vector3<double>;
 
 using Vector2f = Vector2<float>;
 using Vector2d = Vector2<double>;
+
+using Vector9f = Vector9<float>;
+using Vector9d = Vector9<double>;
+
+using Vector12f = Vector12<float>;
+using Vector12d = Vector12<double>;
 
 template<typename T, int N, int M>
 using Matrix = Eigen::Matrix<T, N, M>;
@@ -68,6 +80,7 @@ namespace utility
 {
 	namespace math
 	{
+		Matrix<real, 3, 3> CrossMatrix(const Vector3<real>& f);
 		// void MatrixScale(FbxAMatrix& pMatrix, double pValue);
 		//
 		// void MatrixAddToDiagonal(FbxAMatrix& pMatrix, double pValue);
