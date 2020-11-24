@@ -18,7 +18,6 @@ ADynamicSolidActor::ADynamicSolidActor()
     DynamicSolidComp = CreateDefaultSubobject<UDynamicSolidComponent>("DynamicSolidComp");
 	
 	RootComponent = DynamicSolidComp;
-
 }
 
 void ADynamicSolidActor::OnConstruction(const FTransform& Transform)

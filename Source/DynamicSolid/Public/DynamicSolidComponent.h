@@ -82,6 +82,9 @@ protected:
         float Tolerance;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+        float MaxEpoch;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         TEnumAsByte<EIntegrationMethod> IntegrationMethod;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeshMaterial")
@@ -112,6 +115,9 @@ public:
 
     bool Initialize();
 
+	//wait to code
+    VectorX<real> ComputeWindForce(float SimulatedTime);
+
     VectorX<real> ComputeGravity(float SimulatedTime);
 	
     VectorX<real> ComputeInternalForce(float SimulatedTime);
@@ -139,5 +145,9 @@ private:
     TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
 
     VectorX<real> GetCollisionConstraints(float SimulatedTime);
+
+    TTuple<SpMat<real>, VectorX<real>> GetImplicitEquation(const VectorX<real>& ExternalForce);
+
+    TArray<Matrix3x3<real>> GetPositionConstraints();
 	
 };

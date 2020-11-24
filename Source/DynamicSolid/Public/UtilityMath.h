@@ -5,7 +5,7 @@
 #pragma once
 
 #include<Eigen/Dense>
-// #include<Eigen/Sparse>
+#include<Eigen/Sparse>
 // #include<fbxsdk.h>
 
 #include<cmath>
@@ -36,6 +36,9 @@ using Vector3 = Eigen::Matrix<T, 3, 1>;
 
 template<typename T>
 using Vector2 = Eigen::Matrix<T, 2, 1>;
+
+template<typename T>
+using SpMat = Eigen::SparseMatrix<T>;
 
 template<typename T>
 using Quaternion = Eigen::Quaternion<T>;

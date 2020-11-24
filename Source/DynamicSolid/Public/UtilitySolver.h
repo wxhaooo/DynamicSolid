@@ -6,10 +6,17 @@
 
 #include "UtilityMath.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogSolver, Log, All);
+
 namespace utility
 {
 	namespace solver
 	{
-		VectorX<real> MPCG(const MatrixX<real>& A, const VectorX<real>& b);
+		VectorX<real> MPCG(const SpMat<real>& A, const VectorX<real>& b,
+			const VectorX<real>& z, const TArray<Matrix3x3<real>>& SArray,
+			const real Epsilon, const int MaxEpoch);
+
+		VectorX<real> MPCGFilter(const VectorX<real>& V, 
+			const TArray<Matrix3x3<real>>& SArray);
 	}
 }
