@@ -40,6 +40,9 @@ using Vector2 = Eigen::Matrix<T, 2, 1>;
 template<typename T>
 using Quaternion = Eigen::Quaternion<T>;
 
+template<typename T>
+using Map = Eigen::Map<T>;
+
 using Vector4f = Vector4<float>;
 using Vector4d = Vector4<double>;
 

@@ -79,6 +79,9 @@ protected:
         bool bVisualDebugger;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+        float Tolerance;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         TEnumAsByte<EIntegrationMethod> IntegrationMethod;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeshMaterial")
@@ -110,7 +113,7 @@ public:
     bool Initialize();
 
     VectorX<real> ComputeGravity(float SimulatedTime);
-
+	
     VectorX<real> ComputeInternalForce(float SimulatedTime);
 
     VectorX<real> ComputeConstraintForce(float SimulatedTime);
@@ -135,6 +138,6 @@ private:
 	
     TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
 
-	
+    VectorX<real> GetCollisionConstraints(float SimulatedTime);
 	
 };

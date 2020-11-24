@@ -23,8 +23,8 @@ UDynamicSolidComponent::UDynamicSolidComponent()
 
     bVisualDebugger = false;
 
-    YoungModulus = 0.3f;
-    PoissonRatio = 0.3f;
+    YoungModulus = 1000.f;
+    PoissonRatio = 0.4f;
 
     TimeStep = 0.0005f;
     MaxTimeStep = 0.05f;
@@ -96,10 +96,7 @@ bool UDynamicSolidComponent::InitializeRuntimeMeshComp()
 	    = NewObject<URuntimeMeshProviderStatic>(this,
 		    TEXT("RuntimeMeshProviderStatic"));
     
-    if (RuntimeMeshProviderStatic == nullptr)
-    {
-	return false;
-    }
+    if (RuntimeMeshProviderStatic == nullptr)   return false;
     
     RuntimeMeshComp->Initialize(RuntimeMeshProviderStatic);
 
@@ -218,11 +215,16 @@ VectorX<real> UDynamicSolidComponent::ComputeInternalForce(float SimulatedTime)
     TArray<TSharedPtr<FDynamicTetrahedron>> DynamicTetArray = TetrahedronMeshSPtr->DynamicTetrahedronArray;
     InternalForceOut.setZero(DynamicPointArray.Num() * 3);
 
-	for(int i=0;i<DynamicTetArray.Num();i++)
+    for (int i = 0; i < DynamicTetArray.Num(); i++)
 	{
         TSharedPtr<FDynamicTetrahedron> CurTet = DynamicTetArray[i];
         Vector12<real> InternalForce = CurTet->ComputeForce(Mu, Lambda);
-        TTuple<int, int, int, int> PointIndices = CurTet->PointIndices();
+        // Vector12<real> InternalForce = CurTet->ComputeInternalForceAsSifakisWay(Mu, Lambda);
+
+    	// if(i == 3)
+     //    GEngine->AddOnScreenDebugMessage(-1, 3.f,
+     //        FColor::Red, FString::SanitizeFloat(InternalForce.norm()));
+		TTuple<int, int, int, int> PointIndices = CurTet->PointIndices();
         int p0Index = PointIndices.Get<0>(), p1Index = PointIndices.Get<1>();
         int p2Index = PointIndices.Get<2>(), p3Index = PointIndices.Get<3>();
 
@@ -252,6 +254,7 @@ bool UDynamicSolidComponent::EXP_ForwardDifference(float SimulatedTime)
 	
     VectorX<real> Gravity = ComputeGravity(SimulatedTime);
     VectorX<real> InternalForce = ComputeInternalForce(SimulatedTime);
+    // 
     // InternalForce.setZero();
     TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray = TetrahedronMeshSPtr->DynamicPointArray;
 
@@ -265,8 +268,8 @@ bool UDynamicSolidComponent::EXP_ForwardDifference(float SimulatedTime)
         Vector3<real> TotalForceInPoint;
         TotalForceInPoint.setZero();
     	//for test internal
-        if (CurPoint->PointIndex >= 100)
-            TotalForceInPoint = CurPoint->MassInv * (GravityInPoint + InternalForceInPoint);
+        if (CurPoint->PointIndex > 3)
+        TotalForceInPoint = CurPoint->MassInv * (GravityInPoint + InternalForceInPoint);
 
         CurPoint->Velocity = CurPoint->Velocity + TotalForceInPoint * SimulatedTime;
         CurPoint->PostPosition = CurPoint->Position + CurPoint->Velocity * SimulatedTime;
@@ -293,13 +296,13 @@ bool UDynamicSolidComponent::EXP_Verlet(float SimulatedTime)
         Vector3<real> TotalAccInPoint;
         TotalAccInPoint.setZero();
 
-    	if(CurPoint->PointIndex > 25)
+        if (CurPoint->PointIndex >= 49)
         TotalAccInPoint = CurPoint->MassInv * (GravityInPoint + InternalForceInPoint);
 
     	//Verlet Integration
-        CurPoint->PostPosition = CurPoint->Position +
-            CurPoint->Velocity * SimulatedTime + CurPoint->Accleration * (SimulatedTime * SimulatedTime * 0.5f);
-        CurPoint->Velocity = CurPoint->Velocity + (TotalAccInPoint + CurPoint->Accleration) * SimulatedTime * 0.5f;
+        CurPoint->Velocity = CurPoint->Velocity + CurPoint->Accleration * SimulatedTime * 0.5f;
+        CurPoint->PostPosition = CurPoint->Position + CurPoint->Velocity * SimulatedTime;
+        CurPoint->Velocity = CurPoint->Velocity + TotalAccInPoint * SimulatedTime * 0.5f;
 
         CurPoint->Accleration = TotalAccInPoint;
     }
@@ -308,6 +311,9 @@ bool UDynamicSolidComponent::EXP_Verlet(float SimulatedTime)
 
 bool UDynamicSolidComponent::IMP_MPCG(float SimulatedTime)
 {
+	//MPCG in Baraff98
+    VectorX<real> VelocityConstraint_Collsion = GetCollisionConstraints(SimulatedTime);
+	
     return true;
 }
 
@@ -315,6 +321,51 @@ bool UDynamicSolidComponent::IMP_PPCG(float SimulatedTime)
 {
     return true;
 }
+
+VectorX<real> UDynamicSolidComponent::GetCollisionConstraints(float SimulatedTime)
+{
+    VectorX<real> VelocityConstraint_CollsionOut;
+
+    if (TetrahedronMeshSPtr == nullptr) return VelocityConstraint_CollsionOut;
+
+	//Move Position Forward 
+	
+    TArray<TSharedPtr<FTetDynamicPoint>> DynamicPointArray
+        = TetrahedronMeshSPtr->DynamicPointArray;
+
+    TArray<int> RenderablePointIndexArray = TetrahedronMeshSPtr->RenderablePointIndexArray;
+
+    for (int i = 0; i < RenderablePointIndexArray.Num(); i++)
+    {
+        int CurPointIndex = RenderablePointIndexArray[i];
+        TSharedPtr<FTetDynamicPoint> CurRenderablePoint = DynamicPointArray[CurPointIndex];
+
+        CurRenderablePoint->PostPosition = CurRenderablePoint->Position +
+            CurRenderablePoint->Velocity * SimulatedTime;
+
+        FVector TraceStart = utility::unreal::Vector3ToFVector(CurRenderablePoint->Position);
+        FVector TraceEnd = utility::unreal::Vector3ToFVector(CurRenderablePoint->PostPosition);
+        FHitResult HitResult;
+
+        FCollisionQueryParams CollisionQueryParams;
+        CollisionQueryParams.AddIgnoredActor(GetOwner());
+        CollisionQueryParams.bTraceComplex = true;
+
+        FVector ExpectedPosition = TraceEnd;
+        if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECollisionChannel::ECC_Visibility, CollisionQueryParams))
+        {
+            ExpectedPosition = HitResult.ImpactPoint;
+        }
+    	
+        Vector3<real> NewVelocity =
+            utility::unreal::FVectorToVector3((ExpectedPosition - TraceStart) / SimulatedTime);
+
+    	
+    }
+	
+    return VelocityConstraint_CollsionOut;
+}
+
 
 void UDynamicSolidComponent::CollisionResolve()
 {
@@ -400,8 +451,8 @@ float UDynamicSolidComponent::ComputeMu()
 
 float UDynamicSolidComponent::ComputeLambda()
 {
-	return (YoungModulus * PoissonRatio) /
-        ((1 + PoissonRatio) * (1 - 2.f * PoissonRatio));
+    return (YoungModulus * PoissonRatio) /
+        ((1.f + PoissonRatio) * (1.f - 2.f * PoissonRatio));
 }
 
 void UDynamicSolidComponent::VisualMotionDebugger()
