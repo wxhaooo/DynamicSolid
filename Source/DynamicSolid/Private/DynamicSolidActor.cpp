@@ -23,6 +23,8 @@ ADynamicSolidActor::ADynamicSolidActor()
 void ADynamicSolidActor::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
+
+    DynamicSolidComp->EditorStateSync();
 }
 
 void ADynamicSolidActor::PostInitializeComponents()

@@ -9,6 +9,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "UtilitySolver.h"
 
+DEFINE_LOG_CATEGORY(LogDynamicSolidCompInit);
+
 // Sets default values for this component's properties
 UDynamicSolidComponent::UDynamicSolidComponent()
 {
@@ -53,7 +55,6 @@ void UDynamicSolidComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	    = (bFixedTimeStep & (!FMath::IsNearlyZero(TimeStep)))
 	    ? TimeStep : DeltaTime;
 
-	
 	if(IntegrationMethod == EIntegrationMethod::IM_EXP_FD)
 	{
 		//TimeStep should be enough small (<=0.0001),too slow
@@ -154,6 +155,13 @@ bool UDynamicSolidComponent::CreateRenderableData()
 TSharedPtr<FTetrahedronMesh> UDynamicSolidComponent::GetTetrahedronMeshSPtr()
 {
     return TetrahedronMeshSPtr;
+}
+
+TSharedPtr<FTetrahedronMesh> UDynamicSolidComponent::ConvertTriangleToTetrahedronMesh()
+{
+    TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtrOut;
+
+    return TetrahedronMeshSPtrOut;
 }
 
 void UDynamicSolidComponent::SetTetrahedronMeshSPtr(TSharedPtr<FTetrahedronMesh> TetMeshPtr)
@@ -349,7 +357,7 @@ TTuple<SpMat<real>, VectorX<real>> UDynamicSolidComponent::GetImplicitEquation(c
     return TTuple<SpMat<real>, VectorX<real>>(A, b);
 }
 
-TArray<Matrix3x3<real>>  UDynamicSolidComponent::GetPositionConstraints()
+TArray<Matrix3x3<real>> UDynamicSolidComponent::GetPositionConstraints()
 {
     TArray<Matrix3x3<real>> PositionConstraintsOut;
     if (TetrahedronMeshSPtr == nullptr) return PositionConstraintsOut;
@@ -438,7 +446,7 @@ void UDynamicSolidComponent::CollisionResolve()
         TSharedPtr<FTetDynamicPoint> CurDynamicPoint = DynamicPointArray[i];
     	CurDynamicPoint->Position = CurDynamicPoint->PostPosition;
     }
-}  
+}
 
 bool UDynamicSolidComponent::UpdateRenderableData()
 {
@@ -515,14 +523,63 @@ void UDynamicSolidComponent::VisualMotionDebugger()
     }
 }
 
+bool UDynamicSolidComponent::EditorStateSync()
+{
+    InitializeRuntimeMeshComp();
+
+    RuntimeMeshProviderStatic->CreateSectionFromComponents(0, 0, 0,
+        SMPositionArray,
+        SMTriangleIndexArray,
+        SMNormalArray,
+        SMUvArray, SMColorArray, SMTangentArray,
+        ERuntimeMeshUpdateFrequency::Frequent, true);
+
+    return true;
+}
+
+bool UDynamicSolidComponent::LoadInitDynamicSolidMesh()
+{
+    SMPositionArray.Reset();    SMUvArray.Reset();
+    SMNormalArray.Reset();  SMColorArray.Reset();
+    SMTriangleIndexArray.Reset();   SMTangentArray.Reset();
+
+    if (InitDynamicSolidMesh != nullptr) {
+
+        FPositionVertexBuffer* PositionVertexBuffer = &(InitDynamicSolidMesh->RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer);
+        FRawStaticIndexBuffer* IndexBuffer = &(InitDynamicSolidMesh->RenderData->LODResources[0].IndexBuffer);
+        FStaticMeshVertexBuffers* VertexBuffer = &(InitDynamicSolidMesh->RenderData->LODResources[0].VertexBuffers);
+
+        int PositionVertexNum = PositionVertexBuffer->GetNumVertices();
+        for (int i = 0; i < PositionVertexNum; i++)
+        {
+            FVector VertexPos = PositionVertexBuffer->VertexPosition(i);
+            FVector VertexPosInWorld = GetOwner()->GetActorLocation() + GetComponentTransform().TransformVector(VertexPos);
+            SMPositionArray.Add(VertexPosInWorld);
+            //add other information
+        }
+
+        for (int i = 0; i < IndexBuffer->GetNumIndices(); i++)
+        {
+            SMTriangleIndexArray.Add(IndexBuffer->GetArrayView()[i]);
+        }
+
+        UE_LOG(LogDynamicSolidCompInit, Display, TEXT("StaticMesh Position Number:%d"), SMPositionArray.Num());
+        UE_LOG(LogDynamicSolidCompInit, Display, TEXT("StaticMesh Triangle Number:%d"), SMTriangleIndexArray.Num() / 3);
+    }
+	
+    return true;
+}
+
 #ifdef WITH_EDITOR
 void UDynamicSolidComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+
     FName PropName = PropertyChangedEvent.Property->GetFName();
     
-    UNameProperty* prop = static_cast<UNameProperty*>(PropertyChangedEvent.Property);
+    UNameProperty* Prop = static_cast<UNameProperty*>(PropertyChangedEvent.Property);
     FString MeshLoc;
-    prop->GetPropertyValue(&MeshLoc);
+    Prop->GetPropertyValue(&MeshLoc);
     
     if (PropName == FName("YoungModulus") ||
         PropName == FName("PoissonRatio"))
@@ -544,8 +601,8 @@ void UDynamicSolidComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
     	
         TimeStep = FMath::Clamp(TimeStep, 0.f, MaxTimeStep);
     }
-        
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+    if (PropName == FName("InitDynamicSolidMesh"))
+        LoadInitDynamicSolidMesh();
 }
 #endif

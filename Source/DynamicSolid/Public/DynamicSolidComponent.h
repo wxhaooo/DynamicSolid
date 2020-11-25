@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 // #include "FTetrahedronMesh.h"
+#include "RuntimeMeshComponent.h"
 #include "UtilityMath.h"
 #include "DynamicSolidComponent.generated.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogDynamicSolidCompInit, Log, All);
 
 class URuntimeMeshComponent;
 class URuntimeMeshProviderStatic;
@@ -41,15 +44,18 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Dynamic Solid Configurations")
 		FString InitDynamicSolidPath;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Solid Configurations")
+        UStaticMesh* InitDynamicSolidMesh;
+
     //Simulator Configuration
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
 		float TimeStep;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-		float MaxTimeStep;
+        float MaxTimeStep;
 
-    UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="Simulator Configurations")
-		FVector GravityAccleration;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+        FVector GravityAccleration;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         float YoungModulus;
@@ -105,6 +111,8 @@ public:
 
     URuntimeMeshComponent* GetRuntimeMeshComp();
 
+    bool EditorStateSync();
+
     bool InitializeRuntimeMeshComp();
 
     bool CreateRenderableData();
@@ -149,5 +157,21 @@ private:
     TTuple<SpMat<real>, VectorX<real>> GetImplicitEquation(const VectorX<real>& ExternalForce);
 
     TArray<Matrix3x3<real>> GetPositionConstraints();
-	
+
+    TSharedPtr<FTetrahedronMesh> ConvertTriangleToTetrahedronMesh();
+
+    bool LoadInitDynamicSolidMesh();
+
+    UPROPERTY()
+        TArray<FVector> SMPositionArray;
+    UPROPERTY()
+        TArray<FVector2D> SMUvArray;
+    UPROPERTY()
+        TArray<FVector> SMNormalArray;
+    UPROPERTY()
+        TArray<FColor> SMColorArray;
+    UPROPERTY()
+        TArray<int> SMTriangleIndexArray;
+    UPROPERTY()
+        TArray<FRuntimeMeshTangent> SMTangentArray;
 };
