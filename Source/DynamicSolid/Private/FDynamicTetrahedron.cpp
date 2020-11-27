@@ -110,7 +110,7 @@ Matrix<real, 9, 9> FDynamicTetrahedron::ComputePPhiPF2(real Mu,real Lambda)
 	g3.block<3, 1>(6, 0) = f0.cross(f1);
 	
 	PPhiPF2 = Mu * Matrix<real, 9, 9>::Identity() +
-		Lambda * g3 * g3.transpose() + (Mu + (Lambda - 1)) * H3;
+		Lambda * g3 * g3.transpose() + (Mu + Lambda * (F.determinant() - 1.f)) * H3;
 
 	return PPhiPF2;
 }
@@ -178,7 +178,7 @@ Matrix<real, 12, 12> FDynamicTetrahedron::ComputePPhiPx2(real Mu, real Lambda)
 	PPhiPx2.setZero();
 
 	Matrix<real, 9, 12> PFPx = ComputePFPx();
-	PPhiPx2 = PFPx.transpose() * ComputePPhiPF2(Mu, Lambda) * PFPx;
+	PPhiPx2 = -RestVolume * PFPx.transpose() * ComputePPhiPF2(Mu, Lambda) * PFPx;
 	
 	return PPhiPx2;
 }

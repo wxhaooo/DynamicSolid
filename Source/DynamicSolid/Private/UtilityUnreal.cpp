@@ -2,6 +2,7 @@
 
 
 #include "UtilityUnreal.h"
+#include "Async/ParallelFor.h"
 
 namespace utility
 {

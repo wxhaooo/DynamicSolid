@@ -85,10 +85,13 @@ protected:
         bool bVisualDebugger;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-        float Tolerance;
+        float SolverTolerance;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-        float MaxEpoch;
+        float CollisionOffset;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+        int MaxEpoch;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         TEnumAsByte<EIntegrationMethod> IntegrationMethod;
@@ -126,11 +129,21 @@ public:
 	//wait to code
     VectorX<real> ComputeWindForce(float SimulatedTime);
 
+    bool ComputeWindForce(float SimulatedTime, SpMat<real>& A, VectorX<real>& b);
+
     VectorX<real> ComputeGravity(float SimulatedTime);
+
+    bool ComputeGravity(float SimulatedTime, SpMat<real>& A, VectorX<real>& b);
 	
     VectorX<real> ComputeInternalForce(float SimulatedTime);
 
+    SpMat<real> ComputeInternalForce(float SimulatedTime, SpMat<real>& A, VectorX<real>& b);
+
     VectorX<real> ComputeConstraintForce(float SimulatedTime);
+
+    bool ComputeMorphForce(float SimulatedTime, SpMat<real>& A, VectorX<real>& b);
+
+    bool ComputeOffsetCorrection(float SimulatedTime, SpMat<real>& K, SpMat<real>& A, VectorX<real>& b);
 
     void CollisionResolve();
 
@@ -149,12 +162,14 @@ private:
     bool IMP_MPCG(float SimulatedTime);
 
     bool IMP_PPCG(float SimulatedTime);
+
+    bool AdvanceStep(float SimulatedTime, const VectorX<real>& DeltaV);
 	
     TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
 
-    VectorX<real> GetCollisionConstraints(float SimulatedTime);
+    VectorX<real> GetCollisionConstraints(float SimulatedTime, TArray<Matrix3x3<real>>& PositionConstraints);
 
-    TTuple<SpMat<real>, VectorX<real>> GetImplicitEquation(const VectorX<real>& ExternalForce);
+    TTuple<SpMat<real>, VectorX<real>> GetImplicitEquation(real SimulatedTime);
 
     TArray<Matrix3x3<real>> GetPositionConstraints();
 

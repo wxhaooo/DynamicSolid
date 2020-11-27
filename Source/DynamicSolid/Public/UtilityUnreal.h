@@ -15,5 +15,7 @@ namespace utility
 		FVector2D Vector2ToFVector2D(const Vector2<real>& EigenVector);
 
 		Vector2<real> FVector2DToVector2(const FVector2D& UeVector);
+
+		
 	}
 }
