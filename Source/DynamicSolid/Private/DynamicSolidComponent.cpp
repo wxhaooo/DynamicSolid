@@ -832,7 +832,7 @@ void UDynamicSolidComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
         PropName == FName("PoissonRatio"))
     {
         if (PropName == FName("PoissonRatio"))
-            PoissonRatio = FMath::Clamp(PoissonRatio, 0.f, 0.49f);
+            PoissonRatio = FMath::Clamp(PoissonRatio, 0.f, 0.49999f);
     	
         Mu = ComputeMu();
         Lambda = ComputeLambda();
@@ -860,5 +860,8 @@ void UDynamicSolidComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
 
     if (PropName == FName("SolverTolerance"))
         SolverTolerance = FMath::Clamp(SolverTolerance,0.f, 0.1f);
+
+    if (PropName == FName("Density"))
+        Density = FMath::Clamp(Density, 0.f, Density);
 }
 #endif

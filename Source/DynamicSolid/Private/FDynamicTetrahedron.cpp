@@ -124,12 +124,49 @@ Matrix<real, 9, 9> FDynamicTetrahedron::ComputePPhiPF2(real Mu,real Lambda, EInt
 	else if(EnergyModel == EInternalEnergyModel::IEM_NEOHOOKEAN)
 	{
 		PPhiPF2 = Mu * I +
-			(Lambda * (1.f - FMath::FMath::LogX(10,I3) + Mu)) / (FMath::Pow(I3, 2)) * g3 * g3.transpose()
-			+ (Lambda * FMath::LogX(10,I3) - Mu) / (I3)*H3;
+			(Lambda * (1.f - FMath::Loge(I3) + Mu)) / (FMath::Pow(I3, 2)) * g3 * g3.transpose()
+			+ ((Lambda * FMath::Loge(I3) - Mu) / (I3)) * H3;
 	}
 	else if(EnergyModel == EInternalEnergyModel::IEM_STVK)
 	{
-		
+		Vector9<real> g1 = Map<Vector9<real>>(F.data(), F.rows() * F.cols());
+		Matrix<real, 9, 9> D;
+		D.setZero();
+
+		D.block<3, 3>(0, 0) = f0 * f0.transpose();
+		D.block<3, 3>(0, 3) = f1 * f0.transpose();
+		D.block<3, 3>(0, 6) = f2 * f0.transpose();
+
+		D.block<3, 3>(3, 0) = f0 * f1.transpose();
+		D.block<3, 3>(3, 3) = f1 * f1.transpose();
+		D.block<3, 3>(3, 6) = f2 * f1.transpose();
+
+		D.block<3, 3>(6, 0) = f0 * f2.transpose();
+		D.block<3, 3>(6, 3) = f1 * f2.transpose();
+		D.block<3, 3>(6, 6) = f2 * f2.transpose();
+
+		Matrix<real, 3, 3> FFT = F * F.transpose(), FTF = F.transpose() * F;
+		Matrix<real, 9, 9> HII0, HII1;
+		HII0.setZero();
+		HII1.setZero();
+		for (int i = 0; i < 3; i++)
+		{
+			HII0.block<3, 3>(i * 3, i * 3) = FFT;
+		}
+		for (int i = 0; i < 3; i++)
+		{
+			for (int j = 0; j < 3; j++)
+			{
+				HII1.block<3, 3>(i * 3, j * 3) = 
+					Matrix3x3<real>::Identity() * FTF(i, j);
+			}
+		}
+		real IC = FTF.trace();
+		Matrix<real, 9, 9> HII = 4 * (HII0 + HII1 + D);
+		PPhiPF2 = Lambda / 4.f * g1 * g1.transpose() + 
+			(Lambda / 2.f * (IC - 1.f) - Mu) * I + Mu / 4.0f * HII;
+		// PPhiPF2 = Lambda / 4.f * g1 * g1.transpose();
+		// PPhiPF2 = Mu / 4.0f * HII;
 	}
 
 	return PPhiPF2;
@@ -260,7 +297,7 @@ Vector9<real> FDynamicTetrahedron::ComputePPhiPF(real Mu, real Lambda,EInternalE
 	}
 	else if(EnergyModel == EInternalEnergyModel::IEM_NEOHOOKEAN)
 	{
-		PPhiPFMat = Mu * (F - 1.f / J * PJPF) + (Lambda * FMath::LogX(10,J) / J) * PJPF;
+		PPhiPFMat = Mu * (F - 1.f / J * PJPF) + (Lambda * FMath::Loge(J) / J) * PJPF;
 	}
 	else if(EnergyModel == EInternalEnergyModel::IEM_STVK)
 	{
