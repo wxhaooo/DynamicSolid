@@ -49,6 +49,18 @@ public:
 
 	real Mass;
 	real MassInv;
+
+	void SetMass(const real& MassIn)
+	{
+		this->Mass = MassIn;
+		if (FMath::IsNearlyZero(this->Mass))
+			this->MassInv = 0.f;
+	}
+
+	void AddMass(const real& AddMass)
+	{
+		this->Mass += AddMass;
+	}
 	// TArray<FTetDynamicEdge*> AdjacentEdges;
 	// TArray<FTetDynamicFace*> AdjacentFaces;
 };

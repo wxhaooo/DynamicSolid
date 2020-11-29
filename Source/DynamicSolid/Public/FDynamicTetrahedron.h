@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UtilityMath.h"
+#include "InternalEnergyModel.h"
 
 class FTetDynamicPoint;
 class FTetDynamicEdge;
@@ -27,20 +28,25 @@ public:
 
 	void ComputeDmInvAndVolume();
 
+	real ComputeMass(real Density) { return RestVolume * Density; }
+
+	real GetVolume() { return RestVolume; }
+
 	TTuple<int, int, int, int> PointIndices();
 
 	//get internal force
-	Vector12<real> f(real Mu, real Lambda);
+	Vector12<real> f(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
 	Vector12<real> ComputeInternalForceAsSifakisWay(real Mu, real Lambda);
-	Vector12<real> ComputeForce(real Mu, real Lambda);
+	Vector12<real> ComputeForceAsTensorWay(real Mu, real Lambda,EInternalEnergyModel EnergyModel = EInternalEnergyModel::IEM_NONE);
 
 	//stiffness matrix
-	Matrix<real, 12, 12> K(real Mu, real Lambda);
-	Matrix<real, 12, 12> ComputePPhiPx2(real Mu, real Lambda);
+	Matrix<real, 12, 12> K(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
+	Matrix<real, 12, 12> ComputePPhiPx2(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
 
 	Matrix<real, 3, 3> ComputeStress(real Mu, real Lambda);
-	Vector9<real> ComputePPhiPF(real Mu, real Lambda);
-	Matrix<real, 9, 9> ComputePPhiPF2(real Mu, real Lambda);
+	Vector9<real> ComputePPhiPF(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
+	Matrix<real, 9, 9> ComputePPhiPF2(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
+	Matrix<real, 9, 9> ComputePPhiPF2StvK(real Mu, real Lambda);
 	Matrix<real, 9, 12> ComputePFPx();
 	Matrix<real, 3, 3> GetF();
 	Matrix<real, 3, 3> GetDs();

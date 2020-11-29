@@ -12,6 +12,7 @@ FTetrahedronMesh::FTetrahedronMesh()
 
 FTetrahedronMesh::FTetrahedronMesh(const FString& TetrahedronMeshPath)
 {
+	Mass = 0.f;
 	Initialize(TetrahedronMeshPath);
 }
 
@@ -59,3 +60,19 @@ bool FTetrahedronMesh::ApplyRootActorTransform(const FTransform& RootActorTransf
     return true;
 }
 
+bool FTetrahedronMesh::ComputeMassPerPoint(real Density)
+{
+	for (int i = 0; i < DynamicTetrahedronArray.Num(); i++)
+	{
+		TSharedPtr<FDynamicTetrahedron> CurTet = DynamicTetrahedronArray[i];
+		real TetMass = CurTet->ComputeMass(Density);
+		Mass += TetMass;
+		CurTet->p0->AddMass(TetMass / 4.f);
+		CurTet->p1->AddMass(TetMass / 4.f);
+		CurTet->p2->AddMass(TetMass / 4.f);
+		CurTet->p3->AddMass(TetMass / 4.f);
+	}
+
+	
+	return true;
+}

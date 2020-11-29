@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 // #include "FTetrahedronMesh.h"
+#include "InternalEnergyModel.h"
 #include "RuntimeMeshComponent.h"
 #include "UtilityMath.h"
 #include "DynamicSolidComponent.generated.h"
@@ -19,9 +20,9 @@ UENUM()
 enum EIntegrationMethod {
     IM_NONE             UMETA(DisplayName = "None"),
     IM_EXP_FD           UMETA(DisplayName = "Explicit Method: FowardDifference"),
-	IM_EXP_VERLET       UMETA(DisplayName = "Explicit Method: Verlet"),
+    IM_EXP_VERLET       UMETA(DisplayName = "Explicit Method: Verlet"),
     IM_IMP_MPCG         UMETA(DisplayName = "Implicit Method: MPCG"),
-	IM_IMP_PPCG         UMETA(DisplayName = "Implicit Method: PPCG"),
+    IM_IMP_PPCG         UMETA(DisplayName = "Implicit Method: PPCG"),
 };
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -39,21 +40,22 @@ protected:
 
 protected:
     UPROPERTY(VisibleAnywhere, Category = "Components")
-		URuntimeMeshComponent* RuntimeMeshComp;
+	URuntimeMeshComponent* RuntimeMeshComp;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Dynamic Solid Configurations")
-		FString InitDynamicSolidPath;
+        FString InitDynamicSolidPath;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Solid Configurations")
         UStaticMesh* InitDynamicSolidMesh;
 
     //Simulator Configuration
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-		float TimeStep;
+	float TimeStep;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         float MaxTimeStep;
 
+	//m/s^{2}
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         FVector GravityAccleration;
 
@@ -72,6 +74,7 @@ protected:
     UPROPERTY(VisibleDefaultsOnly, BlueprintReadWrite, Category = "Simulator Configurations")
         float Mu;
 
+	//kg/m^3
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         float Density;
 
@@ -79,7 +82,7 @@ protected:
         float InternalForceDamping;
 	
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-		bool bFixedTimeStep;
+	bool bFixedTimeStep;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         bool bVisualDebugger;
@@ -96,8 +99,14 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         TEnumAsByte<EIntegrationMethod> IntegrationMethod;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+        TEnumAsByte<EInternalEnergyModel> InternalEnergyModel;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Simulator Configurations")
+        FVector2D DebugPositionConstraintsRange;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeshMaterial")
-		UMaterialInterface* MeshMaterial;
+	UMaterialInterface* MeshMaterial;
 
     UPROPERTY()
         URuntimeMeshProviderStatic* RuntimeMeshProviderStatic;
@@ -143,7 +152,7 @@ public:
 
     bool ComputeMorphForce(float SimulatedTime, SpMat<real>& A, VectorX<real>& b);
 
-    bool ComputeOffsetCorrection(float SimulatedTime, SpMat<real>& K, SpMat<real>& A, VectorX<real>& b);
+    bool ComputeOffsetCorrection(float SimulatedTime, SpMat<real>& K, SpMat<real>& A, VectorX<real>& b, const VectorX<real>& OffsetMask);
 
     void CollisionResolve();
 
@@ -167,9 +176,9 @@ private:
 	
     TSharedPtr<FTetrahedronMesh> TetrahedronMeshSPtr;
 
-    VectorX<real> GetCollisionConstraints(float SimulatedTime, TArray<Matrix3x3<real>>& PositionConstraints);
+    TTuple<VectorX<real>,VectorX<real>> GetCollisionConstraints(float SimulatedTime, TArray<Matrix3x3<real>>& PositionConstraints);
 
-    TTuple<SpMat<real>, VectorX<real>> GetImplicitEquation(real SimulatedTime);
+    TTuple<SpMat<real>, VectorX<real>, SpMat<real>> GetImplicitEquation(real SimulatedTime);
 
     TArray<Matrix3x3<real>> GetPositionConstraints();
 
@@ -189,4 +198,8 @@ private:
         TArray<int> SMTriangleIndexArray;
     UPROPERTY()
         TArray<FRuntimeMeshTangent> SMTangentArray;
+
+    float TotalSimulatorTime;
+
+    float UnitTransferScale;
 };

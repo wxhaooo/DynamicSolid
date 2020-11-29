@@ -62,23 +62,25 @@ Vector12<real> FDynamicTetrahedron::ComputeInternalForceAsSifakisWay(real Mu, re
 	return Force;
 }
 
-Vector12<real> FDynamicTetrahedron::ComputeForce(real Mu, real Lambda)
+Vector12<real> FDynamicTetrahedron::ComputeForceAsTensorWay(real Mu, real Lambda, EInternalEnergyModel EnergyModel)
 {
-	Vector12<real> Force;
-	Force.setZero();
+    Vector12<real> Force;
+    Force.setZero();
 
-	Matrix<real, 12, 9> PFPxT = ComputePFPx().transpose();
-	Force = - RestVolume *  PFPxT * ComputePPhiPF(Mu, Lambda);
-	
-	return Force;
+    if (EnergyModel == EInternalEnergyModel::IEM_NONE) return Force;
+
+    Matrix<real, 12, 9> PFPxT = ComputePFPx().transpose();
+	Force = -RestVolume * PFPxT * ComputePPhiPF(Mu, Lambda, EnergyModel);
+    
+    return Force;
 }
 
-Vector12<real> FDynamicTetrahedron::f(real Mu, real Lambda)
+Vector12<real> FDynamicTetrahedron::f(real Mu, real Lambda, EInternalEnergyModel EnergyModel)
 {
-	return ComputeForce(Mu, Lambda);
+	return ComputeForceAsTensorWay(Mu, Lambda, EnergyModel);
 }
 
-Matrix<real, 9, 9> FDynamicTetrahedron::ComputePPhiPF2(real Mu,real Lambda)
+Matrix<real, 9, 9> FDynamicTetrahedron::ComputePPhiPF2(real Mu,real Lambda, EInternalEnergyModel EnergyModel)
 {
 	Matrix<real, 9, 9> PPhiPF2;
 	PPhiPF2.setZero();
@@ -90,6 +92,11 @@ Matrix<real, 9, 9> FDynamicTetrahedron::ComputePPhiPF2(real Mu,real Lambda)
 	Vector3<real> f0 = F.col(0);
 	Vector3<real> f1 = F.col(1);
 	Vector3<real> f2 = F.col(2);
+
+	real I3 = F.determinant();
+
+	Matrix<real, 9, 9> I;
+	I.setIdentity();
 
 	Matrix3x3<real> f0hat = utility::math::CrossMatrix(f0);
 	Matrix3x3<real> f1hat = utility::math::CrossMatrix(f1);
@@ -108,9 +115,33 @@ Matrix<real, 9, 9> FDynamicTetrahedron::ComputePPhiPF2(real Mu,real Lambda)
 	g3.block<3, 1>(0, 0) = f1.cross(f2);
 	g3.block<3, 1>(3, 0) = f2.cross(f0);
 	g3.block<3, 1>(6, 0) = f0.cross(f1);
-	
-	PPhiPF2 = Mu * Matrix<real, 9, 9>::Identity() +
-		Lambda * g3 * g3.transpose() + (Mu + Lambda * (F.determinant() - 1.f)) * H3;
+
+	if (EnergyModel == EInternalEnergyModel::IEM_STABLE_NEOHOOKEAN)
+	{
+		PPhiPF2 = Mu * I +
+			Lambda * g3 * g3.transpose() + (Lambda * (F.determinant() - 1.f) - Mu) * H3;
+	}
+	else if(EnergyModel == EInternalEnergyModel::IEM_NEOHOOKEAN)
+	{
+		PPhiPF2 = Mu * I +
+			(Lambda * (1.f - FMath::FMath::LogX(10,I3) + Mu)) / (FMath::Pow(I3, 2)) * g3 * g3.transpose()
+			+ (Lambda * FMath::LogX(10,I3) - Mu) / (I3)*H3;
+	}
+	else if(EnergyModel == EInternalEnergyModel::IEM_STVK)
+	{
+		
+	}
+
+	return PPhiPF2;
+}
+
+Matrix<real, 9, 9> FDynamicTetrahedron::ComputePPhiPF2StvK(real Mu, real Lambda)
+{
+	Matrix<real, 9, 9> PPhiPF2;
+	PPhiPF2.setZero();
+
+	// Matrix<real, 3, 3> F = GetF();
+	// real I3 = F.determinant();
 
 	return PPhiPF2;
 }
@@ -172,20 +203,22 @@ Matrix<real, 9, 12> FDynamicTetrahedron::ComputePFPx()
 	return PFPx;
 }
 
-Matrix<real, 12, 12> FDynamicTetrahedron::ComputePPhiPx2(real Mu, real Lambda)
+Matrix<real, 12, 12> FDynamicTetrahedron::ComputePPhiPx2(real Mu, real Lambda, EInternalEnergyModel EnergyModel)
 {
 	Matrix<real, 12, 12> PPhiPx2;
 	PPhiPx2.setZero();
 
+	if (EnergyModel == EInternalEnergyModel::IEM_NONE) return PPhiPx2;
+
 	Matrix<real, 9, 12> PFPx = ComputePFPx();
-	PPhiPx2 = -RestVolume * PFPx.transpose() * ComputePPhiPF2(Mu, Lambda) * PFPx;
+	PPhiPx2 = -RestVolume * PFPx.transpose() * ComputePPhiPF2(Mu, Lambda, EnergyModel) * PFPx;
 	
 	return PPhiPx2;
 }
 
-Matrix<real, 12, 12> FDynamicTetrahedron::K(real Mu, real Lambda)
+Matrix<real, 12, 12> FDynamicTetrahedron::K(real Mu, real Lambda,EInternalEnergyModel EnergyModel)
 {
-	return ComputePPhiPx2(Mu, Lambda);
+	return ComputePPhiPx2(Mu, Lambda, EnergyModel);
 }
 
 Matrix<real, 3, 3> FDynamicTetrahedron::ComputeStress(real Mu, real Lambda)
@@ -200,21 +233,40 @@ Matrix<real, 3, 3> FDynamicTetrahedron::ComputeStress(real Mu, real Lambda)
 	return P;
 }
 
-Vector9<real> FDynamicTetrahedron::ComputePPhiPF(real Mu, real Lambda)
+Vector9<real> FDynamicTetrahedron::ComputePPhiPF(real Mu, real Lambda,EInternalEnergyModel EnergyModel)
 {
 	Matrix<real, 3, 3> PPhiPFMat;
 
 	Matrix<real, 3, 3> F = GetF();
-	if(F.determinant()<0)
+	real J = F.determinant();
+	Matrix3x3<real> I = Matrix3x3<real>::Identity();
+	
+	if (J < 0)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "Det(F)<0!");
 	}
-	Matrix<real, 3, 3> FInvT = F.inverse().transpose();
+	
+	Vector3<real> f0 = F.col(0), f1 = F.col(1), f2 = F.col(2);
+	Matrix<real, 3, 3> PJPF;
+	PJPF.col(0) = f1.cross(f2);
+	PJPF.col(1) = f2.cross(f0);
+	PJPF.col(2) = f0.cross(f1);
 
-	Matrix<real, 3, 3> E = 0.5f * (F.transpose() * F - Matrix<real, 3, 3>::Identity());
-	// PPhiPFMat = F * (2.f * Mu * E + Lambda * E.trace() * Matrix<real, 3, 3>::Identity());
-	real DetF = F.determinant();
-	PPhiPFMat = (Mu * F - Mu * DetF * FInvT + Lambda * (DetF - 1.f) * DetF * FInvT);
+	if (EnergyModel == EInternalEnergyModel::IEM_STABLE_NEOHOOKEAN)
+	{
+		// Matrix<real, 3, 3> FInvT = F.inverse().transpose();
+		// PPhiPFMat = F * (2.f * Mu * E + Lambda * E.trace() * Matrix<real, 3, 3>::Identity());
+		PPhiPFMat = Mu * F + (Lambda * (J - 1.f) - Mu) * PJPF;
+	}
+	else if(EnergyModel == EInternalEnergyModel::IEM_NEOHOOKEAN)
+	{
+		PPhiPFMat = Mu * (F - 1.f / J * PJPF) + (Lambda * FMath::LogX(10,J) / J) * PJPF;
+	}
+	else if(EnergyModel == EInternalEnergyModel::IEM_STVK)
+	{
+		Matrix<real, 3, 3> E = 0.5f * (F.transpose() * F - I);
+		PPhiPFMat = F * (2 * Mu * E + Lambda * E.trace() * I);
+	}
 	
 	Vector9<real> PPhiPF;
 
@@ -227,8 +279,6 @@ Matrix<real, 3, 3> FDynamicTetrahedron::GetF()
 {
 	return GetDs() * DmInv;
 }
-
-
 
 TTuple<int, int, int, int> FDynamicTetrahedron::PointIndices()
 {
