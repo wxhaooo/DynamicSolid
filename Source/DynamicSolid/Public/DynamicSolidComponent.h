@@ -8,6 +8,7 @@
 #include "InternalEnergyModel.h"
 #include "RuntimeMeshComponent.h"
 #include "UtilityMath.h"
+#include "MagicNumber.h"
 #include "DynamicSolidComponent.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDynamicSolidCompInit, Log, All);
@@ -95,6 +96,9 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         int MaxEpoch;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
+        bool bForcePD;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         TEnumAsByte<EIntegrationMethod> IntegrationMethod;
@@ -200,6 +204,4 @@ private:
         TArray<FRuntimeMeshTangent> SMTangentArray;
 
     float TotalSimulatorTime;
-
-    float UnitTransferScale;
 };

@@ -4,6 +4,7 @@
 #include "FTetrahedronMesh.h"
 #include "UtilityGeometry.h"
 #include "UtilityUnreal.h"
+#include "MagicNumber.h"
 
 FTetrahedronMesh::FTetrahedronMesh()
 {
@@ -51,8 +52,10 @@ bool FTetrahedronMesh::ApplyRootActorTransform(const FTransform& RootActorTransf
 	TSharedPtr<FTetDynamicPoint> CurDynamicPoint = DynamicPointArray[i];
 	FVector TmpPosition = utility::unreal::Vector3ToFVector(CurDynamicPoint->Position);
 
+	TmpPosition *= UnitTransferMToCM;
 	TmpPosition = RootActorTransform.TransformPosition(TmpPosition);
-	
+	TmpPosition *= UnitTransferCmToM;
+    	
 	CurDynamicPoint->Position = utility::unreal::FVectorToVector3(TmpPosition);
 	CurDynamicPoint->InitialPosition = CurDynamicPoint->PostPosition =
 	CurDynamicPoint->RestPosition = CurDynamicPoint->Position;

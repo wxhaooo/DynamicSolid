@@ -40,16 +40,20 @@ public:
 	Vector12<real> ComputeForceAsTensorWay(real Mu, real Lambda,EInternalEnergyModel EnergyModel = EInternalEnergyModel::IEM_NONE);
 
 	//stiffness matrix
-	Matrix<real, 12, 12> K(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
-	Matrix<real, 12, 12> ComputePPhiPx2(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
+	Matrix<real, 12, 12> K(real Mu, real Lambda, EInternalEnergyModel EnergyModel, bool bForcePD);
+	Matrix<real, 12, 12> ComputePPhiPx2(real Mu, real Lambda, EInternalEnergyModel EnergyModel, bool bForcePD);
 
 	Matrix<real, 3, 3> ComputeStress(real Mu, real Lambda);
 	Vector9<real> ComputePPhiPF(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
-	Matrix<real, 9, 9> ComputePPhiPF2(real Mu, real Lambda, EInternalEnergyModel EnergyModel);
+	Matrix<real, 9, 9> ComputePPhiPF2(real Mu, real Lambda, EInternalEnergyModel EnergyModel, bool bForcePD);
 	Matrix<real, 9, 9> ComputePPhiPF2StvK(real Mu, real Lambda);
 	Matrix<real, 9, 12> ComputePFPx();
 	Matrix<real, 3, 3> GetF();
 	Matrix<real, 3, 3> GetDs();
+
+	//force PD
+	Matrix<real, 9, 9> ProjectHessianWithAnalyticalFormulasNew(const real& mu, const real& lambda, const Matrix3x3<real>& F);
+	Matrix<real, 9, 9> BuildTwistAndFlipEigenvectors(const Matrix3x3<real>& U, const Matrix3x3<real>& V);
 	//points in tetrahedron element
 	TSharedPtr<FTetDynamicPoint> p0, p1, p2, p3;
 	int index;

@@ -82,6 +82,9 @@ using MatrixXf = MatrixX<float>;
 
 using VectorXf = VectorX<float>;
 
+//for SVD result
+using UVSGroup = TTuple<Matrix3x3<real>, Matrix3x3<real>, Vector3<real>>;
+
 namespace utility
 {
 	namespace math

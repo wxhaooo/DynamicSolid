@@ -64,9 +64,10 @@ namespace utility
 
 		P.makeCompressed();
 		PInv.makeCompressed();
-		
+
 		VectorX<real> Filterb = MPCGFilter(b, SArray);
 		real Delta0 = Filterb.transpose() * (P * Filterb);
+		
 		VectorX<real> r = MPCGFilter(b - A * DeltaV, SArray);
 		VectorX<real> c = MPCGFilter(PInv * r,SArray);
 		real DeltaNew = r.transpose().dot(c);

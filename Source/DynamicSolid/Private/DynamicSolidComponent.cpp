@@ -28,7 +28,7 @@ UDynamicSolidComponent::UDynamicSolidComponent()
 
     bVisualDebugger = false;
 
-    YoungModulus = 1000.f;
+    YoungModulus = 1e6f;
     PoissonRatio = 0.4f;
 
     TimeStep = 0.005f;
@@ -37,11 +37,13 @@ UDynamicSolidComponent::UDynamicSolidComponent()
     Mu = ComputeMu();
     Lambda = ComputeLambda();
 
-    SolverTolerance = 1e-2;
+    bFixedTimeStep = true;
+    bForcePD = true;
+	
+    SolverTolerance = 1e-5;
     CollisionOffset = 0.2f;
     InternalForceDamping = 0.005f;
     MaxEpoch = 1000;
-    UnitTransferScale = 100.f;
     Density = 600.f;
 }
 
@@ -51,8 +53,6 @@ void UDynamicSolidComponent::BeginPlay()
     Super::BeginPlay();
 
     TotalSimulatorTime = 0.f;
-
-    UnitTransferScale = 100.f;
 	
     UE_LOG(LogTemp, Display, TEXT("Dynamic Solid Component Begin Play"));
 }
@@ -69,8 +69,8 @@ void UDynamicSolidComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	    ? TimeStep : DeltaTime;
 
     TotalSimulatorTime += SimulatedTime;
-    GEngine->AddOnScreenDebugMessage(-1, 3.f,
-        FColor::Blue, FString::SanitizeFloat(TotalSimulatorTime));
+    // GEngine->AddOnScreenDebugMessage(-1, 3.f,
+    //     FColor::Blue, FString::SanitizeFloat(TotalSimulatorTime));
 
 	if(IntegrationMethod == EIntegrationMethod::IM_EXP_FD)
 	{
@@ -150,8 +150,10 @@ bool UDynamicSolidComponent::CreateRenderableData()
 	//RuntimeMeshComponent会自动应用节点的Transform，所以还需要把Transform变回去
 	//每轮都多很多次矩阵向量乘法
 	FVector Tmp = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->DynamicPointArray[CurIndex]->Position);
-	Tmp = OwnerActorTransform.InverseTransformPosition(Tmp);
-        Tmp = Tmp * UnitTransferScale;
+    Tmp *= UnitTransferMToCM;
+    //因为RuntimeComponent会自动加一个Transform上去，所以先乘以一个InverseTransform
+    Tmp = OwnerActorTransform.InverseTransformPosition(Tmp);
+    // Tmp = OwnerActorTransform.TransformPosition(Tmp);
 	PositionArray.Add(Tmp);
 	NormalArray.Add(utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableNormalArray[CurIndex]));
 	TexCoordArray.Add(utility::unreal::Vector2ToFVector2D(TetrahedronMeshSPtr->RenderableUvArray[CurIndex]));
@@ -327,7 +329,7 @@ SpMat<real> UDynamicSolidComponent::ComputeInternalForce(float SimulatedTime, Sp
     for (int nn = 0; nn < DynamicTetArray.Num(); nn++)
 	{
         TSharedPtr<FDynamicTetrahedron> CurTet = DynamicTetArray[nn];
-        Matrix<real, 12, 12> Ki = CurTet->K(Mu, Lambda, InternalEnergyModel);
+        Matrix<real, 12, 12> Ki = CurTet->K(Mu, Lambda, InternalEnergyModel, bForcePD);
         TTuple<int, int, int, int> TetPointIndices = CurTet->PointIndices();
     	
         int p0Index = TetPointIndices.Get<0>(), p1Index = TetPointIndices.Get<1>();
@@ -382,6 +384,7 @@ SpMat<real> UDynamicSolidComponent::ComputeInternalForce(float SimulatedTime, Sp
     //     });
  
     VectorX<real> f = ComputeInternalForce(SimulatedTime);
+		// GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, FString::SanitizeFloat(f.norm()));
     b += (SimulatedTime * (f + (SimulatedTime + InternalForceDamping) * K * v));
 
     return K;
@@ -583,15 +586,15 @@ TArray<Matrix3x3<real>> UDynamicSolidComponent::GetPositionConstraints()
             PositionConstraintsOut[Idx] = IdMat;
         });
 
-    for (int i = int(DebugPositionConstraintsRange.X); i <= int(DebugPositionConstraintsRange.Y); i++)
+    for (int i = int(DebugPositionConstraintsRange.X); i < int(DebugPositionConstraintsRange.Y); i++)
 	{
         PositionConstraintsOut[i].setZero();
 	}
 	//Manual test case
-    // PositionConstraintsOut[0].setZero();
-    // PositionConstraintsOut[1].setZero();
     // PositionConstraintsOut[2].setZero();
     // PositionConstraintsOut[3].setZero();
+    // PositionConstraintsOut[6].setZero();
+    // PositionConstraintsOut[7].setZero();
 
     // utility::debug::AddOnScreen(-1, 3.f, FColor::Cyan, PositionConstraintsOut[2]);
 	//other position constraints
@@ -625,19 +628,32 @@ TTuple<VectorX<real>, VectorX<real>> UDynamicSolidComponent::GetCollisionConstra
 
         FVector TraceStart = utility::unreal::Vector3ToFVector(CurRenderablePoint->Position);
         FVector TraceEnd = utility::unreal::Vector3ToFVector(CurRenderablePoint->PostPosition);
+
+        //convert UE4 space to simulation space(cm -> m)
+        TraceStart *= UnitTransferMToCM;
+        TraceEnd *= UnitTransferMToCM;
+
+        // TraceStart = GetOwner()->GetActorTransform().InverseTransformPosition(TraceStart);
+        // TraceEnd = GetOwner()->GetActorTransform().InverseTransformPosition(TraceEnd);
+
+    	//convert simulation space to UE4 space
+        // TraceStart = GetOwner()->GetActorTransform().TransformPosition(TraceStart);
+        // TraceEnd = GetOwner()->GetActorTransform().TransformPosition(TraceEnd);
+
         FHitResult HitResult;
 
         FCollisionQueryParams CollisionQueryParams;
         CollisionQueryParams.AddIgnoredActor(GetOwner());
         CollisionQueryParams.bTraceComplex = true;
 
+        // DrawDebugPoint(GetWorld(), TraceStart, 10.f, FColor::Red, true);
         // DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Red, true);
 
         if (GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart,
             TraceEnd, ECollisionChannel::ECC_Visibility, CollisionQueryParams))
         {
             FVector ExpectedPosition = HitResult.ImpactPoint;
-            // DrawDebugLine(GetWorld(), TraceStart, ExpectedPosition, FColor::Red, true, -1, 0, 5);
+            DrawDebugLine(GetWorld(), TraceStart, ExpectedPosition, FColor::Red, true, -1, 0, 5);
             Vector3<real> HitNormal = utility::unreal::FVectorToVector3(HitResult.ImpactNormal);
             // real dist = FVector::Dist(ExpectedPosition, TraceStart);
             // ExpectedPosition = TraceStart + (ExpectedPosition - TraceStart).GetSafeNormal() * (dist);
@@ -645,11 +661,12 @@ TTuple<VectorX<real>, VectorX<real>> UDynamicSolidComponent::GetCollisionConstra
             PositionConstraints[CurPointIndex].setZero();
             OffsetMask_CollisionOut.block<3, 1>(CurPointIndex * 3, 0) = HitNormal;
         	// DrawDebugLine(GetWorld(), TraceStart, ExpectedPosition, FColor::Cyan, true, -1, 0, 10);
-            Vector3<real> ExpectedVelocity = utility::unreal::FVectorToVector3((ExpectedPosition - TraceStart) / SimulatedTime);
+        	//cm/s -> m/s
+            Vector3<real> ExpectedVelocity = utility::unreal::FVectorToVector3((ExpectedPosition - TraceStart) / SimulatedTime) * UnitTransferCmToM;
             // real NormalVelocity = ExpectedVelocity.dot(HitNormal);
         	// NormalVelocity * 
         	//Expected Delta Velocity
-            VelocityConstraint_CollsionOut.block<3, 1>(CurPointIndex * 3, 0) = ExpectedVelocity - CurRenderablePoint->Velocity;
+            VelocityConstraint_CollsionOut.block<3, 1>(CurPointIndex * 3, 0) = (ExpectedVelocity - CurRenderablePoint->Velocity);
         }
     }
 	
@@ -715,8 +732,10 @@ bool UDynamicSolidComponent::UpdateRenderableData()
 	//每轮都多很多次矩阵向量乘法
 	FVector Tmp = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->DynamicPointArray[CurIndex]->Position);
         // DrawDebugPoint(GetWorld(), Tmp, 5.f, FColor::Cyan, false, 0.1f);
-        Tmp = OwnerActorTransform.InverseTransformPosition(Tmp);
-        Tmp = Tmp * UnitTransferScale;
+    Tmp = Tmp * UnitTransferMToCM;
+    //思路同CreateRenderableData()
+    Tmp = OwnerActorTransform.InverseTransformPosition(Tmp);
+    // Tmp = OwnerActorTransform.TransformPosition(Tmp);
 	PositionArray.Add(Tmp);
 	NormalArray.Add(utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableNormalArray[CurIndex]));
 	TexCoordArray.Add(utility::unreal::Vector2ToFVector2D(TetrahedronMeshSPtr->RenderableUvArray[CurIndex]));
@@ -761,8 +780,8 @@ void UDynamicSolidComponent::VisualMotionDebugger()
     {
 	TSharedPtr<FTetDynamicPoint> CurDynamicPoint = DynamicPointArray[i];
 	FVector CurDynamicPos = utility::unreal::Vector3ToFVector(CurDynamicPoint->Position);
-	CurDynamicPos = GetOwner()->GetActorTransform().InverseTransformPosition(CurDynamicPos);
-        CurDynamicPos = CurDynamicPos * UnitTransferScale;
+    CurDynamicPos = CurDynamicPos * UnitTransferMToCM;
+	// CurDynamicPos = GetOwner()->GetActorTransform().InverseTransformPosition(CurDynamicPos);
 	if (IsRenderablePoint.Contains(i))
 	    DrawDebugPoint(GetWorld(), CurDynamicPos, 5.f, FColor::Cyan, false, 0.1f);
 	else
@@ -772,7 +791,14 @@ void UDynamicSolidComponent::VisualMotionDebugger()
 
 bool UDynamicSolidComponent::EditorStateSync()
 {
+    AActor* OwnerActor = GetOwner();
+    if (OwnerActor == nullptr) return false;
+	   
     InitializeRuntimeMeshComp();
+
+    // if (MeshMaterial != nullptr)
+    RuntimeMeshProviderStatic->SetupMaterialSlot
+        (0, TEXT("TriMat"), MeshMaterial);
 
     RuntimeMeshProviderStatic->CreateSectionFromComponents(0, 0, 0,
         SMPositionArray,
@@ -795,23 +821,36 @@ bool UDynamicSolidComponent::LoadInitDynamicSolidMesh()
         FPositionVertexBuffer* PositionVertexBuffer = &(InitDynamicSolidMesh->RenderData->LODResources[0].VertexBuffers.PositionVertexBuffer);
         FRawStaticIndexBuffer* IndexBuffer = &(InitDynamicSolidMesh->RenderData->LODResources[0].IndexBuffer);
         FStaticMeshVertexBuffers* VertexBuffer = &(InitDynamicSolidMesh->RenderData->LODResources[0].VertexBuffers);
-
+    	
         int PositionVertexNum = PositionVertexBuffer->GetNumVertices();
         for (int i = 0; i < PositionVertexNum; i++)
         {
             FVector VertexPos = PositionVertexBuffer->VertexPosition(i);
-            FVector VertexPosInWorld = GetOwner()->GetActorLocation() + GetComponentTransform().TransformVector(VertexPos);
-            SMPositionArray.Add(VertexPosInWorld);
+            FVector VertexPosInWorld =GetComponentTransform().TransformVector(VertexPos);
+            // FVector VertexPosInWorld = GetOwner()->GetActorLocation() + GetComponentTransform().TransformVector(VertexPos);
+            //position
+        	SMPositionArray.Add(VertexPosInWorld);
             //add other information
+        	//uv
+            SMUvArray.Add(VertexBuffer->StaticMeshVertexBuffer.GetVertexUV(i, 0));
+        	//normal
+            SMNormalArray.Add(VertexBuffer->StaticMeshVertexBuffer.VertexTangentX(i));
+			//tangent
+            FRuntimeMeshTangent CurMeshTangent;
+            CurMeshTangent.TangentX = VertexBuffer->StaticMeshVertexBuffer.VertexTangentZ(i);
+            SMTangentArray.Add(CurMeshTangent);
+
         }
 
         for (int i = 0; i < IndexBuffer->GetNumIndices(); i++)
         {
             SMTriangleIndexArray.Add(IndexBuffer->GetArrayView()[i]);
         }
-
+    	
         UE_LOG(LogDynamicSolidCompInit, Display, TEXT("StaticMesh Position Number:%d"), SMPositionArray.Num());
         UE_LOG(LogDynamicSolidCompInit, Display, TEXT("StaticMesh Triangle Number:%d"), SMTriangleIndexArray.Num() / 3);
+        UE_LOG(LogTemp, Display, TEXT("StaticMesh Normal Number:%d"), SMNormalArray.Num());
+        UE_LOG(LogTemp, Display, TEXT("StaticMesh Tangent Number:%d"), SMTangentArray.Num());
     }
 	
     return true;

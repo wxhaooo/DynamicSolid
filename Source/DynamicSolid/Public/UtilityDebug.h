@@ -13,8 +13,14 @@ namespace utility
 
 		void AddOnScreen(int Key, float TimeToDisplay, const FColor& DisplayColor, const Vector3<real>& Vec3);
 
+		void AddOnScreen(int Key, float TimeToDisplay, const FColor& DisplayColor, const Matrix<real, 9, 9>& Mat);
+		
 		void AddOnScreen(int Key, float TimeToDisplay, const FColor& DisplayColor, const VectorX<real>& VecX, int Start, int End);
 
 		FString ConvertLogStr(const VectorX<real>& VecX, int Start, int End);
+
+		FString ConvertLogStr(const Matrix3x3<real>& Mat);
+
+		FString ConvertLogStr(const Matrix<real, 9, 9>& Mat);
 	}
 }
