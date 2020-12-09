@@ -6,7 +6,7 @@
 #include "UtilityMath.h"
 
 class FTetDynamicEdge;
-class FTetDynamicFace;
+class FTetRenderableTriangle;
 
 class DYNAMICSOLID_API FTetDynamicPoint
 {
@@ -34,6 +34,21 @@ public:
 		MassInv = 1.f;
 	}
 
+	void SetMass(const real& MassIn)
+	{
+		this->Mass = MassIn;
+		if (FMath::IsNearlyZero(this->Mass))
+			this->MassInv = 0.f;
+	}
+
+	void AddMass(const real& AddMass)
+	{
+		this->Mass += AddMass;
+	}
+
+	//Compute Point Normal By Adjacent Surface(Triangle) Normal
+	Vector3<real> ComputeNormal();
+
 	Vector3<real> Position;
 	Vector3<real> RestPosition;
 	Vector3<real> PostPosition;
@@ -50,17 +65,9 @@ public:
 	real Mass;
 	real MassInv;
 
-	void SetMass(const real& MassIn)
-	{
-		this->Mass = MassIn;
-		if (FMath::IsNearlyZero(this->Mass))
-			this->MassInv = 0.f;
-	}
-
-	void AddMass(const real& AddMass)
-	{
-		this->Mass += AddMass;
-	}
-	// TArray<FTetDynamicEdge*> AdjacentEdges;
-	// TArray<FTetDynamicFace*> AdjacentFaces;
+	TArray<TSharedPtr<FTetRenderableTriangle>> AdjRenderableTriangleArray;
 };
+
+using DynamicPointUPtr = TUniquePtr<FTetDynamicPoint>;
+using DynamicPointSPtr = TSharedPtr<FTetDynamicPoint>;
+using DynamicPointPtr = FTetDynamicPoint*;

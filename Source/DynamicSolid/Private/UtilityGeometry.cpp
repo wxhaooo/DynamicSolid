@@ -12,10 +12,10 @@ namespace utility
 {
 	namespace geometry
 	{
-		void ParseTetFile(const FString& TetFilePath,FTetrahedronMesh* TetrahedronMeshPt)
+		void ParseTetFile(const FString& TetFilePath, FTetrahedronMesh* TetrahedronMeshPt)
 		{
 			if (TetrahedronMeshPt == nullptr) return;
-			
+
 			FString FileData;
 			FFileHelper::LoadFileToString(FileData, *TetFilePath);
 			TArray<FString> Lines;
@@ -28,12 +28,12 @@ namespace utility
 			TArray<Vector3<real>> PositionArray;
 			TArray<Vector2<real>> UvArray;
 			TArray<Vector3<real>> NormalArray;
-			
+
 			TArray<Vector4<int>> TetPointIndexArray;
 			TArray<int> TrianglePointIndexArray;
 			TArray<int> TriangleUvIndexArray;
 			TArray<int> TriangleNormalIndexArray;
-			
+
 			for (int i = 0; i < LineCount; i++)
 			{
 				auto CurLine = Lines[i];
@@ -41,7 +41,7 @@ namespace utility
 
 				TArray<FString> LineElements;
 				CurLine.ParseIntoArray(LineElements, *SpaceDelimiter);
-			
+
 				if (LineElements[0] == "v")	//points in mesh
 				{
 					// UE_LOG(LogTemp, Display, TEXT("233333"));
@@ -61,7 +61,7 @@ namespace utility
 					// }
 
 				}
-				else if(LineElements[0] == "tet")	//tetrahedron element
+				else if (LineElements[0] == "tet")	//tetrahedron element
 				{
 					// if (LineElements[1].IsNumeric() &&
 					// 	LineElements[2].IsNumeric() &&
@@ -81,7 +81,7 @@ namespace utility
 					// 	UE_LOG(LogTemp, Warning, TEXT("vertex index in tet is not numeric type"));
 					// }
 				}
-				else if(LineElements[0] == "f")		//point indices of triangle faces
+				else if (LineElements[0] == "f")		//point indices of triangle faces
 				{
 					for (int j = 1; j < LineElements.Num(); j++)
 					{
@@ -89,12 +89,12 @@ namespace utility
 						TArray<FString> IndexElements;
 						CurLineElement.ParseIntoArray(IndexElements, *SlashDelimiter);
 
-						if(IndexElements.Num() >= 1)
+						if (IndexElements.Num() >= 1)
 						{
 							TrianglePointIndexArray.Add(FCString::Atoi(*IndexElements[0]));
 						}
 
-						if(IndexElements.Num() == 2)
+						if (IndexElements.Num() == 2)
 						{
 							if (!CurLineElement.Contains(DoubleSlashDelimiter))
 								TriangleUvIndexArray.Add(FCString::Atoi(*IndexElements[1]));
@@ -102,29 +102,29 @@ namespace utility
 								TriangleNormalIndexArray.Add(FCString::Atoi(*IndexElements[1]));
 						}
 
-						if(IndexElements.Num() == 3)
+						if (IndexElements.Num() == 3)
 						{
 							TriangleUvIndexArray.Add(FCString::Atoi(*IndexElements[1]));
 							TriangleNormalIndexArray.Add(FCString::Atoi(*IndexElements[2]));
 						}
 					}
 				}
-				else if(LineElements[0] == "vt")	//uv coordinates
+				else if (LineElements[0] == "vt")	//uv coordinates
 				{
 					// if (LineElements[1].IsNumeric() &&
 					// 	LineElements[2].IsNumeric())
 					// {
-						float u, v;
-						u = FCString::Atof(*LineElements[1]);
-						v = FCString::Atof(*LineElements[2]);
-						UvArray.Add(Vector2<real>(u,v));
+					float u, v;
+					u = FCString::Atof(*LineElements[1]);
+					v = FCString::Atof(*LineElements[2]);
+					UvArray.Add(Vector2<real>(u, v));
 					// }
 					// else
 					// {
 					// 	UE_LOG(LogTemp, Warning, TEXT("uv coordinate in tet is not numeric type"));
 					// }
 				}
-				else if(LineElements[0] == "vn")	//normals
+				else if (LineElements[0] == "vn")	//normals
 				{
 					// if (LineElements[1].IsNumeric() &&
 					// 	LineElements[2].IsNumeric() &&
@@ -172,7 +172,6 @@ namespace utility
 
 			TetrahedronMeshPt->RenderableUvArray = UvArray;
 			TetrahedronMeshPt->RenderableNormalArray = NormalArray;
-
 			TetrahedronMeshPt->RenderableTriangleIndexArray = TrianglePointIndexArray;
 
 			TSet<int> AuxSet;
@@ -181,22 +180,27 @@ namespace utility
 			for (int i = 0; i < TrianglePointIndexArray.Num(); i++)
 			{
 				MaxIndexNumber = std::max(MaxIndexNumber, TrianglePointIndexArray[i]);
-				if(!AuxSet.Contains(TrianglePointIndexArray[i]))
+				if (!AuxSet.Contains(TrianglePointIndexArray[i]))
 				{
 					AuxSet.Add(TrianglePointIndexArray[i]);
 					TetrahedronMeshPt->RenderablePointIndexArray
-					.Add(TrianglePointIndexArray[i]);
+						.Add(TrianglePointIndexArray[i]);
 				}
 			}
 
 			// UE_LOG(LogTemp, Display, TEXT("Max : %d\n"), MaxIndexNumber);
-			
+
 			TetrahedronMeshPt->RenderablePointIndexArray.Sort();
-			
+
 			// for (int i = 0; i < TetrahedronMeshPt->RenderablePointIndexArray.Num(); i++)
 			// {
 			// 	UE_LOG(LogTemp, Display, TEXT("%d\n"), TetrahedronMeshPt->RenderablePointIndexArray[i]);
 			// }
+		}
+
+		Vector3<real> TriangleFaceNormal(const Vector3<real> P0, const Vector3<real> P1, const Vector3<real> P2)
+		{
+			return (P1 - P0).cross(P2 - P0).normalized();
 		}
 	}
 }

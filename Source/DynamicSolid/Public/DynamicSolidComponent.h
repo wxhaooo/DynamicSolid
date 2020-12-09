@@ -86,9 +86,6 @@ protected:
 	bool bFixedTimeStep;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
-        bool bVisualDebugger;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
         float SolverTolerance;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Simulator Configurations")
@@ -108,6 +105,18 @@ protected:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Simulator Configurations")
         FVector2D DebugPositionConstraintsRange;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual Debugger Configurations")
+        bool bIsVisualNormal;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual Debugger Configurations")
+        float VisualNormalLength;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual Debugger Configurations")
+        bool bIsVisualPointCloud;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Visual Debugger Configurations")
+        bool bSaveSimulatedFrame;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "MeshMaterial")
 	UMaterialInterface* MeshMaterial;
@@ -190,6 +199,8 @@ private:
 
     bool LoadInitDynamicSolidMesh();
 
+    bool SaveSimulateFrame();
+
     UPROPERTY()
         TArray<FVector> SMPositionArray;
     UPROPERTY()
@@ -204,4 +215,6 @@ private:
         TArray<FRuntimeMeshTangent> SMTangentArray;
 
     float TotalSimulatorTime;
+
+    int FrameNumber;
 };

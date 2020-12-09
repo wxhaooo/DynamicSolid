@@ -5,13 +5,16 @@
 #include<vector>
 #include "FTetDynamicPoint.h"
 #include "FDynamicTetrahedron.h"
-#include "FTetrahedronMesh.h"
+
+class FTetrahedronMesh;
 
 namespace utility
 {
 	namespace geometry
 	{
 		void ParseTetFile(const FString& TetFilePath, FTetrahedronMesh* TetrahedronMeshPt);
+
+		Vector3<real> TriangleFaceNormal(const Vector3<real> P0, const Vector3<real> P1, const Vector3<real> P2);
 	}
 }
 

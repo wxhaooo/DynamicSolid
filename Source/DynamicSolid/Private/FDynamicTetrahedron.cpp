@@ -423,7 +423,7 @@ Vector9<real> FDynamicTetrahedron::ComputePPhiPF(real Mu, real Lambda,EInternalE
 	{
 		// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::SanitizeFloat(J));
 
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "Det(F)<0!");
+		// GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, "Det(F)<0!");
 	}
 	
 	// Vector3<real> f0 = F.col(0), f1 = F.col(1), f2 = F.col(2);

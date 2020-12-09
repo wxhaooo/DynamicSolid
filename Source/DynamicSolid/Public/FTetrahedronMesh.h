@@ -4,6 +4,13 @@
 
 #include "FTetDynamicPoint.h"
 #include "FDynamicTetrahedron.h"
+#include "FTetRenderableTriangle.h"
+
+struct FDoubleVertices
+{
+public:
+	TArray<int> doubles;
+};
 
 class DYNAMICSOLID_API FTetrahedronMesh
 {
@@ -18,9 +25,12 @@ public:
 
 	//renderable data
 	TArray<int> RenderablePointIndexArray;
+	TArray<TSharedPtr<FTetRenderableTriangle>> RenderableTetSurfaceTriangleArray;
 	TArray<int> RenderableTriangleIndexArray;
 	TArray<Vector2<real>> RenderableUvArray;
 	TArray<Vector3<real>> RenderableNormalArray;
+	TArray<Vector3<real>> RenderableBiTangentArray;
+	TArray<Vector3<real>> RenderableTangentArray;
 
 	real Mass;
 
@@ -28,8 +38,15 @@ public:
 	int SurfacePointNumber() { return RenderablePointIndexArray.Num(); }
 	int DynamicTetraherdronNumber() { return DynamicTetrahedronArray.Num(); }
 
+	void ExtractTetSurfaceTriangle();
 	bool ComputeMassPerPoint(real Density);
 	bool Initialize(const FString& TetrahedronMeshPath);
 	void ParseTetrahedronMesh(const FString& TetrahedronMeshPath);
 	bool ApplyRootActorTransform(const FTransform& RootActorTransform = FTransform::Identity);
+
+	void ComputeNormals();
+
+private:
+	TArray<FDoubleVertices> FindDoubleVertices();
+	void ComputeNormals(const TArray<FDoubleVertices>& doubles);
 };

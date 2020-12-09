@@ -6,10 +6,13 @@
 #include "Providers/RuntimeMeshProviderStatic.h"
 #include "UtilityUnreal.h"
 #include "DrawDebugHelpers.h"
+#include "ImageUtils.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "UtilitySolver.h"
 #include "Async/ParallelFor.h"
 #include "UtilityDebug.h"
+#include "Misc/FileHelper.h"
+// #include "Camera/PlayerCameraManager.h"
 
 DEFINE_LOG_CATEGORY(LogDynamicSolidCompInit);
 
@@ -25,8 +28,6 @@ UDynamicSolidComponent::UDynamicSolidComponent()
 
     RuntimeMeshComp = CreateDefaultSubobject<URuntimeMeshComponent>("RuntimeMeshComp");
     RuntimeMeshComp->SetupAttachment(this);
-
-    bVisualDebugger = false;
 
     YoungModulus = 1e6f;
     PoissonRatio = 0.4f;
@@ -45,6 +46,11 @@ UDynamicSolidComponent::UDynamicSolidComponent()
     InternalForceDamping = 0.005f;
     MaxEpoch = 1000;
     Density = 600.f;
+
+    bIsVisualPointCloud = false;
+    bIsVisualNormal = false;
+    bSaveSimulatedFrame = false;
+    VisualNormalLength = 15.f;
 }
 
 // Called when the game starts
@@ -53,7 +59,8 @@ void UDynamicSolidComponent::BeginPlay()
     Super::BeginPlay();
 
     TotalSimulatorTime = 0.f;
-	
+    FrameNumber = 0;
+
     UE_LOG(LogTemp, Display, TEXT("Dynamic Solid Component Begin Play"));
 }
 
@@ -64,6 +71,8 @@ void UDynamicSolidComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 
     if (IntegrationMethod == EIntegrationMethod::IM_NONE) return;
 
+    FrameNumber++;
+	
     float SimulatedTime
 	    = (bFixedTimeStep & (!FMath::IsNearlyZero(TimeStep)))
 	    ? TimeStep : DeltaTime;
@@ -92,14 +101,37 @@ void UDynamicSolidComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	
     UpdateRenderableData();
 
-    if(bVisualDebugger)
+    if(bIsVisualPointCloud)
       VisualMotionDebugger();
 
+    if (bSaveSimulatedFrame)
+        SaveSimulateFrame();
     // GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, FString::SanitizeFloat(Mu));
     // GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan, FString::SanitizeFloat(Lambda));
 
 	// UE_LOG(LogTemp, Display, TEXT("Lame's First Parameter: %f"), Mu);
     // UE_LOG(LogTemp, Display, TEXT("Lame's Second Parameter: %f"), Lambda);
+}
+
+bool UDynamicSolidComponent::SaveSimulateFrame()
+{
+    UGameViewportClient* gameViewport = GEngine->GameViewport;
+    FViewport* InViewport = gameViewport->Viewport;
+    TArray<FColor> Bitmap;
+    FIntRect Rect(0, 0, InViewport->GetSizeXY().X, InViewport->GetSizeXY().Y);
+    // GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, FString::FromInt(InViewport->GetSizeXY().X));
+    // GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, FString::FromInt(InViewport->GetSizeXY().Y));
+    bool bScreenshotSuccessful = GetViewportScreenShot(InViewport, Bitmap, Rect);
+
+    if (!bScreenshotSuccessful) return false;
+  
+    FIntVector Size(InViewport->GetSizeXY().X, InViewport->GetSizeXY().Y, 0);
+    TArray<uint8> CompressedBitmap;
+    FString ScreenShotName = TEXT("E:/Code/Unreal/DynamicSolid/out.png");
+    FImageUtils::CompressImageArray(Size.X, Size.Y, Bitmap, CompressedBitmap);
+    if(FrameNumber == 1)
+		FFileHelper::SaveArrayToFile(CompressedBitmap, *ScreenShotName);
+    return true;
 }
 
 URuntimeMeshComponent* UDynamicSolidComponent::GetRuntimeMeshComp()
@@ -122,7 +154,7 @@ bool UDynamicSolidComponent::InitializeRuntimeMeshComp()
 
 bool UDynamicSolidComponent::CreateRenderableData()
 {
-    if (bVisualDebugger) return false;
+    if (bIsVisualPointCloud) return false;
 	
     AActor* OwnerActor = GetOwner();
     if (TetrahedronMeshSPtr == nullptr) return false;
@@ -140,6 +172,9 @@ bool UDynamicSolidComponent::CreateRenderableData()
 
     FTransform OwnerActorTransform = OwnerActor->GetActorTransform();
 
+	//compute normals runtime
+    TetrahedronMeshSPtr->ComputeNormals();
+
     // UE_LOG(LogTemp, Display, TEXT("PointIndexArraySize: %d\n"), TetrahedronMeshSPtr->RenderablePointIndexArray.Num());
     // UE_LOG(LogTemp, Display, TEXT("PointUvArraySize: %d\n"), TetrahedronMeshSPtr->RenderableUvArray.Num());
     // UE_LOG(LogTemp, Display, TEXT("PointNormalArraySize: %d\n"), TetrahedronMeshSPtr->RenderableNormalArray.Num());
@@ -151,12 +186,25 @@ bool UDynamicSolidComponent::CreateRenderableData()
 	//每轮都多很多次矩阵向量乘法
 	FVector Tmp = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->DynamicPointArray[CurIndex]->Position);
     Tmp *= UnitTransferMToCM;
+    FVector CurNormal = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableNormalArray[CurIndex]);
+    // FVector CurNormal = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->DynamicPointArray[CurIndex]->ComputeNormal());
+    if (bIsVisualNormal) {
+        if (IntegrationMethod == EIntegrationMethod::IM_NONE)
+            DrawDebugLine(GetWorld(), Tmp, Tmp + CurNormal * VisualNormalLength, FColor::Cyan, true, -1);
+        else
+    		DrawDebugLine(GetWorld(), Tmp, Tmp + CurNormal * VisualNormalLength, FColor::Cyan, false, 0.1f);
+    }
     //因为RuntimeComponent会自动加一个Transform上去，所以先乘以一个InverseTransform
     Tmp = OwnerActorTransform.InverseTransformPosition(Tmp);
+   
     // Tmp = OwnerActorTransform.TransformPosition(Tmp);
 	PositionArray.Add(Tmp);
-	NormalArray.Add(utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableNormalArray[CurIndex]));
+    NormalArray.Add(CurNormal);
+	// NormalArray.Add(utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableNormalArray[CurIndex]));
 	TexCoordArray.Add(utility::unreal::Vector2ToFVector2D(TetrahedronMeshSPtr->RenderableUvArray[CurIndex]));
+    FRuntimeMeshTangent CurTangent;
+    CurTangent.TangentX = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableTangentArray[CurIndex]);
+    TangentArray.Add(CurTangent);
     }
     
     ColorArray.Init(FColor::Red,
@@ -653,7 +701,7 @@ TTuple<VectorX<real>, VectorX<real>> UDynamicSolidComponent::GetCollisionConstra
             TraceEnd, ECollisionChannel::ECC_Visibility, CollisionQueryParams))
         {
             FVector ExpectedPosition = HitResult.ImpactPoint;
-            DrawDebugLine(GetWorld(), TraceStart, ExpectedPosition, FColor::Red, true, -1, 0, 5);
+            // DrawDebugLine(GetWorld(), TraceStart, ExpectedPosition, FColor::Red, true, -1, 0, 5);
             Vector3<real> HitNormal = utility::unreal::FVectorToVector3(HitResult.ImpactNormal);
             // real dist = FVector::Dist(ExpectedPosition, TraceStart);
             // ExpectedPosition = TraceStart + (ExpectedPosition - TraceStart).GetSafeNormal() * (dist);
@@ -725,30 +773,42 @@ bool UDynamicSolidComponent::UpdateRenderableData()
 
     FTransform OwnerActorTransform = OwnerActor->GetActorTransform();
 
+	//update surface normal runtime
+    TetrahedronMeshSPtr->ComputeNormals();
+
     for (int i = 0; i < TetrahedronMeshSPtr->RenderablePointIndexArray.Num(); i++)
     {
-	int CurIndex = TetrahedronMeshSPtr->RenderablePointIndexArray[i];
-	//RuntimeMeshComponent会自动应用节点的Transform，所以还需要把Transform变回去
-	//每轮都多很多次矩阵向量乘法
-	FVector Tmp = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->DynamicPointArray[CurIndex]->Position);
-        // DrawDebugPoint(GetWorld(), Tmp, 5.f, FColor::Cyan, false, 0.1f);
-    Tmp = Tmp * UnitTransferMToCM;
-    //思路同CreateRenderableData()
-    Tmp = OwnerActorTransform.InverseTransformPosition(Tmp);
-    // Tmp = OwnerActorTransform.TransformPosition(Tmp);
-	PositionArray.Add(Tmp);
-	NormalArray.Add(utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableNormalArray[CurIndex]));
-	TexCoordArray.Add(utility::unreal::Vector2ToFVector2D(TetrahedronMeshSPtr->RenderableUvArray[CurIndex]));
+		int CurIndex = TetrahedronMeshSPtr->RenderablePointIndexArray[i];
+		//RuntimeMeshComponent会自动应用节点的Transform，所以还需要把Transform变回去
+		//每轮都多很多次矩阵向量乘法
+		FVector Tmp = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->DynamicPointArray[CurIndex]->Position);
+	    FVector CurNormal = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableNormalArray[CurIndex]);
+        // FVector CurNormal = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->DynamicPointArray[CurIndex]->ComputeNormal());
+    	FVector2D CurUv = utility::unreal::Vector2ToFVector2D(TetrahedronMeshSPtr->RenderableUvArray[CurIndex]);
+	    Tmp = Tmp * UnitTransferMToCM;
+
+	    if (bIsVisualNormal)
+	        DrawDebugLine(GetWorld(), Tmp, Tmp + CurNormal * VisualNormalLength, FColor::Cyan, false, 0.1f);
+
+	    //思路同CreateRenderableData()
+	    Tmp = OwnerActorTransform.InverseTransformPosition(Tmp);
+        FRuntimeMeshTangent CurTangent;
+        CurTangent.TangentX = utility::unreal::Vector3ToFVector(TetrahedronMeshSPtr->RenderableTangentArray[CurIndex]);
+        TangentArray.Add(CurTangent);
+        // CurNormal = OwnerActorTransform.TransformPosition(CurNormal);
+		PositionArray.Add(Tmp);
+		NormalArray.Add(CurNormal);
+	    TexCoordArray.Add(CurUv);
     }
 
     ColorArray.Init(FColor::Red,
 	    TetrahedronMeshSPtr->RenderablePointIndexArray.Num());
 
     RuntimeMeshProviderStatic->UpdateSectionFromComponents(0, 0,
-	    PositionArray,
-	    TetrahedronMeshSPtr->RenderableTriangleIndexArray,
-	    NormalArray,
-	    TexCoordArray, ColorArray, TangentArray);
+        PositionArray,
+        TetrahedronMeshSPtr->RenderableTriangleIndexArray,
+        NormalArray,
+        TexCoordArray, ColorArray, TangentArray);
 
     return true;
 }
@@ -834,10 +894,10 @@ bool UDynamicSolidComponent::LoadInitDynamicSolidMesh()
         	//uv
             SMUvArray.Add(VertexBuffer->StaticMeshVertexBuffer.GetVertexUV(i, 0));
         	//normal
-            SMNormalArray.Add(VertexBuffer->StaticMeshVertexBuffer.VertexTangentX(i));
+            SMNormalArray.Add(VertexBuffer->StaticMeshVertexBuffer.VertexTangentZ(i));
 			//tangent
             FRuntimeMeshTangent CurMeshTangent;
-            CurMeshTangent.TangentX = VertexBuffer->StaticMeshVertexBuffer.VertexTangentZ(i);
+            CurMeshTangent.TangentX = VertexBuffer->StaticMeshVertexBuffer.VertexTangentX(i);
             SMTangentArray.Add(CurMeshTangent);
 
         }
