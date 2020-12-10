@@ -23,7 +23,7 @@ void FDynamicTetrahedron::ComputeDmInvAndVolume()
 	tmp.col(1) = p2->RestPosition - p0->RestPosition;
 	tmp.col(2) = p3->RestPosition - p0->RestPosition;
 
-	if (FMath::Abs(tmp.determinant()) < eps) {
+	if (FMath::Abs(tmp.determinant()) < utility::math::eps) {
 		UE_LOG(LogTemp, Display,
 			TEXT("det(InvDm) is zero in tetraheron composing of point (%d %d %d %d)"),
 			p0->PointIndex, p1->PointIndex, p2->PointIndex, p3->PointIndex);

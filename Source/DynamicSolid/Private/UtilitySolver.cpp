@@ -104,5 +104,34 @@ namespace utility
 		// utility::debug::AddOnScreen(-1, 3.f, FColor::Red, tmp);
 		return DeltaV;
 	}
+
+	SpMat<real> ComputeGlobalS(const TArray<Matrix3x3<real>>& SArray)
+	{
+		int n = SArray.Num() * 3;
+		SpMat<real> S(n, n);
+		for (int i = 0; i < SArray.Num(); i++)
+		{
+			S.coeffRef(i * 3, i * 3) = SArray[i](0, 0);
+			S.coeffRef(i * 3 + 1, i * 3 + 1) = SArray[i](0, 0);
+			S.coeffRef(i * 3 + 2, i * 3 + 2) = SArray[i](0, 0);
+
+		}
+		return S;
+	}
+
+	VectorX<real> PPCG(const SpMat<real>& A, const VectorX<real>& b,
+		const VectorX<real>& z, const TArray<Matrix3x3<real>>& SArray)
+	{
+		SpMat<real> GlobalS = ComputeGlobalS(SArray);
+		SpMat<real> NewA = GlobalS * A * GlobalS.transpose();
+		VectorX<real> c = b - A * z;
+		VectorX<real> Newb = GlobalS * c;
+
+		Eigen::ConjugateGradient<SpMat<real>, Eigen::Lower | Eigen::Upper> CGSolver;
+		CGSolver.compute(NewA);
+		VectorX<real> y = CGSolver.solve(Newb);
+		VectorX<real> x = y + z;
+		return x;
+	}
     }
 }

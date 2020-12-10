@@ -557,6 +557,41 @@ bool UDynamicSolidComponent::IMP_MPCG(float SimulatedTime)
 
 bool UDynamicSolidComponent::IMP_PPCG(float SimulatedTime)
 {
+    if (TetrahedronMeshSPtr == nullptr)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 3.f,
+            FColor::Black, TEXT("TetrahedronMeshSPtr is nullptr"));
+        return false;
+    }
+    //PPCG in Tamstorf15
+    TTuple<SpMat<real>, VectorX<real>, SpMat<real>> ImplicitEquation = GetImplicitEquation(SimulatedTime);
+
+    SpMat<real> A = ImplicitEquation.Get<0>();
+    VectorX<real> b = ImplicitEquation.Get<1>();
+    SpMat<real> K = ImplicitEquation.Get<2>();
+
+    TArray<Matrix3x3<real>> PositionConstraints = GetPositionConstraints();
+    TTuple<VectorX<real>, VectorX<real>> CollisionConstraints = GetCollisionConstraints(SimulatedTime, PositionConstraints);
+
+    VectorX<real> VelocityConstraint_Collision = CollisionConstraints.Get<0>();
+    VectorX<real> OffsetMask_Collision = CollisionConstraints.Get<1>();
+    // UE_LOG(LogSolver, Display, TEXT("%s"), *utility::debug::ConvertLogStr(VelocityConstraint_Collision, 0, VelocityConstraint_Collision.size()));
+    //offset correction
+    ComputeOffsetCorrection(SimulatedTime, K, A, b, OffsetMask_Collision);
+
+    // MatrixX<real> DenseMat(A);
+    // Eigen::EigenSolver<MatrixX<real>> EigenSolver(DenseMat);
+    //
+    // for (int i = 0; i < EigenSolver.eigenvalues().size(); i++)
+    // {
+    //     if (EigenSolver.eigenvalues()(i).real() < 0)
+    //         GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Red, "Eigenvalue is negative");
+    // }
+	
+    // GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Black, FString::SanitizeFloat(Tolerance));
+    VectorX<real> DeltaV = utility::solver::PPCG(A, b, VelocityConstraint_Collision, PositionConstraints);
+    // UE_LOG(LogSolver, Display, TEXT("%s"),*utility::debug::ConvertLogText(DeltaV, 0, DeltaV.size()));
+    AdvanceStep(SimulatedTime, DeltaV);
     return true;
 }
 

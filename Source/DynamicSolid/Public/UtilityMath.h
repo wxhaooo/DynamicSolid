@@ -12,15 +12,25 @@
 
 #ifdef HIGH_PRECISION
 using real = double;
-constexpr double eps = 1e-9;
-constexpr double pi = 3.141592653589793238462643383279502884;
 #else
 using real = float;
-constexpr float pi = 3.141592653589;
-constexpr float eps = 1e-6;
 #endif
 
 using real_hps = double;
+
+namespace utility
+{
+	namespace math
+	{
+#ifdef HIGH_PRECISION
+		constexpr double eps = 1e-9;
+		constexpr double pi = 3.141592653589793238462643383279502884;
+#else
+		constexpr float pi = 3.141592653589;
+		constexpr float eps = 1e-6;
+#endif
+	}
+}
 
 template<typename T>
 using Vector9 = Eigen::Matrix<T, 9, 1>;

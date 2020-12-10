@@ -18,5 +18,10 @@ namespace utility
 
 		VectorX<real> MPCGFilter(const VectorX<real>& V, 
 			const TArray<Matrix3x3<real>>& SArray);
+
+		VectorX<real> PPCG(const SpMat<real>& A, const VectorX<real>& b,
+			const VectorX<real>& z, const TArray<Matrix3x3<real>>& SArray);
+
+		SpMat<real> ComputeGlobalS(const TArray<Matrix3x3<real>>& SArray);
 	}
 }
